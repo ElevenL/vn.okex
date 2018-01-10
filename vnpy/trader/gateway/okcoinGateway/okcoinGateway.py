@@ -18,7 +18,7 @@ from Queue import Queue
 from threading import Thread
 from time import sleep
 
-from vnpy.api.okcoin import vnokcoin
+from okcoin.vnokcoin import OkCoinApi,OKCOIN_USD
 from vnpy.trader.vtGateway import *
 from vnpy.trader.vtFunction import getJsonPath
 
@@ -47,7 +47,7 @@ statusMap[4] = STATUS_UNKNOWN
 ############################################
 
 # USD
-BTC_USD_SPOT = 'BTC_USD_SPOT'
+ETH_BTC_SPOT = 'ETH_BTC_SPOT'
 BTC_USD_THISWEEK = 'BTC_USD_THISWEEK'
 BTC_USD_NEXTWEEK = 'BTC_USD_NEXTWEEK'
 BTC_USD_QUARTER = 'BTC_USD_QUARTER'
@@ -70,7 +70,7 @@ ETH_CNY_SPOT = 'ETH_CNY_SPOT'
 # 印射字典
 spotSymbolMap = {}
 spotSymbolMap['ltc_usd'] = LTC_USD_SPOT
-spotSymbolMap['btc_usd'] = BTC_USD_SPOT
+spotSymbolMap['eth_btc'] = ETH_BTC_SPOT
 spotSymbolMap['ETH_usd'] = ETH_USD_SPOT
 spotSymbolMap['ltc_cny'] = LTC_CNY_SPOT
 spotSymbolMap['btc_cny'] = BTC_CNY_SPOT
@@ -84,11 +84,11 @@ spotSymbolMapReverse = {v: k for k, v in spotSymbolMap.items()}
 channelSymbolMap = {}
 
 # USD
-channelSymbolMap['ok_sub_spotusd_btc_ticker'] = BTC_USD_SPOT
+channelSymbolMap['ok_sub_spot_eth_btc_ticker'] = ETH_BTC_SPOT
 channelSymbolMap['ok_sub_spotusd_ltc_ticker'] = LTC_USD_SPOT
 channelSymbolMap['ok_sub_spotusd_eth_ticker'] = ETH_USD_SPOT
 
-channelSymbolMap['ok_sub_spotusd_btc_depth_20'] = BTC_USD_SPOT
+channelSymbolMap['ok_sub_spot_eth_btc_depth_5'] = ETH_BTC_SPOT
 channelSymbolMap['ok_sub_spotusd_ltc_depth_20'] = LTC_USD_SPOT
 channelSymbolMap['ok_sub_spotusd_eth_depth_20'] = ETH_USD_SPOT
 
@@ -117,9 +117,11 @@ class OkcoinGateway(VtGateway):
         
         self.leverage = 0
         self.connected = False
-        
+
+        self.qryEnabled = True
         self.fileName = self.gatewayName + '_connect.json'
-        self.filePath = getJsonPath(self.fileName, __file__)             
+        self.filePath = getJsonPath(self.fileName, __file__)
+        self.registeHandle()
         
     #----------------------------------------------------------------------
     def connect(self):
@@ -152,11 +154,11 @@ class OkcoinGateway(VtGateway):
         # 初始化接口
         self.leverage = leverage
         
-        if host == 'CNY':
-            host = vnokcoin.OKCOIN_CNY
-        else:
-            host = vnokcoin.OKCOIN_USD
-        
+        # if host == 'CNY':
+        #     host = vnokcoin.OKCOIN_CNY
+        # else:
+        #     host = vnokcoin.OKCOIN_USD
+        host = OKCOIN_USD
         self.api.active = True
         self.api.connect(host, apiKey, secretKey, trace)
         
@@ -240,11 +242,17 @@ class OkcoinGateway(VtGateway):
     def setQryEnabled(self, qryEnabled):
         """设置是否要启动循环查询"""
         self.qryEnabled = qryEnabled
-    
 
+    def pTick(self, event):
+        tick = event.dict_['data']
+        print tick
+
+    def registeHandle(self):
+        '''注册处理机'''
+        self.eventEngine.register(EVENT_TICK, self.pTick)
 
 ########################################################################
-class Api(vnokcoin.OkCoinApi):
+class Api(OkCoinApi):
     """OkCoin的API实现"""
 
     #----------------------------------------------------------------------
@@ -273,6 +281,7 @@ class Api(vnokcoin.OkCoinApi):
     def onMessage(self, ws, evt):
         """信息推送""" 
         data = self.readData(evt)[0]
+        # print data
         channel = data['channel']
         callback = self.cbDict[channel]
         callback(data)
@@ -289,6 +298,7 @@ class Api(vnokcoin.OkCoinApi):
     def onClose(self, ws):
         """接口断开"""
         # 如果尚未连上，则忽略该次断开提示
+        print 'close'
         if not self.gateway.connected:
             return
         
@@ -313,41 +323,42 @@ class Api(vnokcoin.OkCoinApi):
         """连接成功"""
         self.gateway.connected = True
         self.writeLog(u'服务器连接成功')
+        print 'open'
         
         # 连接后查询账户和委托数据
-        self.spotUserInfo()
-        
-        self.spotOrderInfo(vnokcoin.TRADING_SYMBOL_LTC, '-1')
-        self.spotOrderInfo(vnokcoin.TRADING_SYMBOL_BTC, '-1')
-        self.spotOrderInfo(vnokcoin.TRADING_SYMBOL_ETH, '-1')
+        # self.spotUserInfo()
+        #
+        # self.spotOrderInfo(vnokcoin.TRADING_SYMBOL_LTC, '-1')
+        # self.spotOrderInfo(vnokcoin.TRADING_SYMBOL_BTC, '-1')
+        # self.spotOrderInfo(vnokcoin.TRADING_SYMBOL_ETH, '-1')
 
         # 连接后订阅现货的成交和账户数据
-        self.subscribeSpotTrades()
-        self.subscribeSpotUserInfo()   
-        
-        self.subscribeSpotTicker(vnokcoin.SYMBOL_BTC)
-        self.subscribeSpotTicker(vnokcoin.SYMBOL_LTC)
-        self.subscribeSpotTicker(vnokcoin.SYMBOL_ETH)
+        # self.subscribeSpotTrades()
+        # self.subscribeSpotUserInfo()
+        #
+        # self.subscribeSpotTicker(vnokcoin.SYMBOL_BTC)
+        # self.subscribeSpotTicker(vnokcoin.SYMBOL_LTC)
+        # self.subscribeSpotTicker(vnokcoin.SYMBOL_ETH)
 
-        self.subscribeSpotDepth(vnokcoin.SYMBOL_BTC, vnokcoin.DEPTH_20)
-        self.subscribeSpotDepth(vnokcoin.SYMBOL_LTC, vnokcoin.DEPTH_20)
-        self.subscribeSpotDepth(vnokcoin.SYMBOL_ETH, vnokcoin.DEPTH_20)
+        self.subscribeSpotDepth('eth_btc', '5')
+        # self.subscribeSpotDepth(vnokcoin.SYMBOL_LTC, vnokcoin.DEPTH_20)
+        # self.subscribeSpotDepth(vnokcoin.SYMBOL_ETH, vnokcoin.DEPTH_20)
 
         # 如果连接的是USD网站则订阅期货相关回报数据
-        if self.currency == vnokcoin.CURRENCY_USD:
-            self.subscribeFutureTrades()
-            self.subscribeFutureUserInfo()
-            self.subscribeFuturePositions()
+        # if self.currency == vnokcoin.CURRENCY_USD:
+        #     self.subscribeFutureTrades()
+        #     self.subscribeFutureUserInfo()
+        #     self.subscribeFuturePositions()
         
         # 返回合约信息
-        if self.currency == vnokcoin.CURRENCY_CNY:
-            l = self.generateCnyContract()
-        else:
-            l = self.generateUsdContract()
-            
-        for contract in l:
-            contract.gatewayName = self.gatewayName
-            self.gateway.onContract(contract)
+        # if self.currency == vnokcoin.CURRENCY_CNY:
+        #     l = self.generateCnyContract()
+        # else:
+        #     l = self.generateUsdContract()
+        #
+        # for contract in l:
+        #     contract.gatewayName = self.gatewayName
+        #     self.gateway.onContract(contract)
             
     #----------------------------------------------------------------------
     def writeLog(self, content):
@@ -361,11 +372,11 @@ class Api(vnokcoin.OkCoinApi):
     def initCallback(self):
         """初始化回调函数"""
         # USD_SPOT
-        self.cbDict['ok_sub_spotusd_btc_ticker'] = self.onTicker
+        self.cbDict['ok_sub_spot_eth_btc_ticker'] = self.onTicker
         self.cbDict['ok_sub_spotusd_ltc_ticker'] = self.onTicker
         self.cbDict['ok_sub_spotusd_eth_ticker'] = self.onTicker
 
-        self.cbDict['ok_sub_spotusd_btc_depth_20'] = self.onDepth
+        self.cbDict['ok_sub_spot_eth_btc_depth_5'] = self.onDepth
         self.cbDict['ok_sub_spotusd_ltc_depth_20'] = self.onDepth
         self.cbDict['ok_sub_spotusd_eth_depth_20'] = self.onDepth
 
@@ -422,7 +433,7 @@ class Api(vnokcoin.OkCoinApi):
         tick.lastPrice = float(rawData['last'])
         tick.volume = float(rawData['vol'])
         #tick.date, tick.time = generateDateTime(rawData['timestamp'])
-        
+        print tick
         newtick = copy(tick)
         self.gateway.onTick(newtick)
     
@@ -431,7 +442,6 @@ class Api(vnokcoin.OkCoinApi):
         """"""
         if 'data' not in data:
             return
-        
         channel = data['channel']
         symbol = channelSymbolMap[channel]
         
@@ -461,7 +471,6 @@ class Api(vnokcoin.OkCoinApi):
         tick.askPrice5, tick.askVolume5 = rawData['asks'][-5]     
         
         tick.date, tick.time = generateDateTime(rawData['timestamp'])
-        
         newtick = copy(tick)
         self.gateway.onTick(newtick)
     
