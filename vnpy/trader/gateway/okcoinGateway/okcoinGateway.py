@@ -245,7 +245,11 @@ class OkcoinGateway(VtGateway):
 
     def pTick(self, event):
         tick = event.dict_['data']
-        print tick
+        # print tick.symbol
+        # print tick.askPrice1
+        # print tick.askVolume1
+        # print tick.bidPrice1
+        # print tick.bidVolume1
 
     def registeHandle(self):
         '''注册处理机'''
@@ -281,9 +285,8 @@ class Api(OkCoinApi):
     def onMessage(self, ws, evt):
         """信息推送""" 
         data = self.readData(evt)[0]
-        # print data
         channel = data['channel']
-        callback = self.cbDict[channel]
+        callback = self.getCallback(channel)
         callback(data)
         
     #----------------------------------------------------------------------
@@ -408,7 +411,28 @@ class Api(OkCoinApi):
         self.cbDict['ok_spotcny_cancel_order'] = self.onSpotCancelOrder        
 
         # USD_FUTURES
-        
+
+    # ----------------------------------------------------------------------
+    def getCallback(self, channel):
+        """初始化回调函数"""
+        if channel.endswith('_ticker'):
+            return self.onTicker
+        elif channel.endswith('_depth_5'):
+            return self.onDepth
+        elif channel.endswith('_userinfo'):
+            return self.onSpotUserInfo
+        elif channel.endswith('_orderinfo'):
+            return self.onSpotOrderInfo
+        elif channel == 'ok_spot_order':
+            return self.onSpotTrade
+        elif channel.endswith('_order'):
+            return self.onSpotSubTrades
+        elif channel == 'ok_spot_cancel_order':
+            return self.onSpotCancelOrder
+        elif channel.endswith('_balance'):
+            return self.onSpotSubUserInfo
+
+
     #----------------------------------------------------------------------
     def onTicker(self, data):
         """"""
@@ -444,7 +468,7 @@ class Api(OkCoinApi):
             return
         channel = data['channel']
         symbol = channelSymbolMap[channel]
-        
+        print channel
         if symbol not in self.tickDict:
             tick = VtTickData()
             tick.symbol = symbol
@@ -480,7 +504,7 @@ class Api(OkCoinApi):
         rawData = data['data']
         info = rawData['info']
         funds = rawData['info']['funds']
-        
+        print funds
         # 持仓信息
         for symbol in ['btc', 'ltc','eth', self.currency]:
             if symbol in funds['free']:
