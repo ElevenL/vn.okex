@@ -3,8 +3,8 @@
 from vnokcoin import *
 
 # 在OkCoin网站申请这两个Key，分别对应用户名和密码
-apiKey = 'd3957a89-3bb4-49eb-a3e5-b240028ff03b'
-secretKey = 'B406B928BAAB3270A26F886B1F636A2F'
+apiKey = 'XXXX'
+secretKey = 'XXXX'
 
 # 创建API对象
 api = OkCoinApi()
@@ -17,7 +17,7 @@ sleep(1)
 # 测试现货行情API
 # api.subscribeSpotTicker('eth_btc')
 #api.subscribeSpotTradeData(SYMBOL_BTC)
-# api.subscribeSpotDepth('eth_btc', '20')
+api.subscribeSpotDepth('eth_btc', '5')
 #api.subscribeSpotKline(SYMBOL_BTC, INTERVAL_1M)
 
 # 测试现货交易API
