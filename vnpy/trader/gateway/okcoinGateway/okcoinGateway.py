@@ -245,6 +245,7 @@ class OkcoinGateway(VtGateway):
 
     def pTick(self, event):
         tick = event.dict_['data']
+        print tick.symbol
         # print tick.symbol
         # print tick.askPrice1
         # print tick.askVolume1
@@ -267,11 +268,13 @@ class Api(OkCoinApi):
         self.gateway = gateway                  # gateway对象
         self.gatewayName = gateway.gatewayName  # gateway对象名称
         
-        self.active = False             # 若为True则会在断线后自动重连
+        self.active = True             # 若为True则会在断线后自动重连
 
         self.cbDict = {}
         self.tickDict = {}
         self.orderDict = {}
+        self.balance = {}
+        self.depth = {}
         
         self.localNo = 0                # 本地委托号
         self.localNoQueue = Queue()     # 未收到系统委托号的本地委托号队列
@@ -344,6 +347,7 @@ class Api(OkCoinApi):
         # self.subscribeSpotTicker(vnokcoin.SYMBOL_ETH)
 
         self.subscribeSpotDepth('eth_btc', '5')
+        self.subscribeSpotDepth('ltc_btc', '5')
         # self.subscribeSpotDepth(vnokcoin.SYMBOL_LTC, vnokcoin.DEPTH_20)
         # self.subscribeSpotDepth(vnokcoin.SYMBOL_ETH, vnokcoin.DEPTH_20)
 
@@ -457,7 +461,6 @@ class Api(OkCoinApi):
         tick.lastPrice = float(rawData['last'])
         tick.volume = float(rawData['vol'])
         #tick.date, tick.time = generateDateTime(rawData['timestamp'])
-        print tick
         newtick = copy(tick)
         self.gateway.onTick(newtick)
     
@@ -467,8 +470,9 @@ class Api(OkCoinApi):
         if 'data' not in data:
             return
         channel = data['channel']
-        symbol = channelSymbolMap[channel]
-        print channel
+        a = channel.split('_')
+        symbol = '_'.join((a[3], a[4]))
+        # symbol = channelSymbolMap[channel]
         if symbol not in self.tickDict:
             tick = VtTickData()
             tick.symbol = symbol
@@ -496,6 +500,8 @@ class Api(OkCoinApi):
         
         tick.date, tick.time = generateDateTime(rawData['timestamp'])
         newtick = copy(tick)
+        self.depth[symbol] = newtick
+        print self.depth
         self.gateway.onTick(newtick)
     
     #----------------------------------------------------------------------
@@ -504,7 +510,11 @@ class Api(OkCoinApi):
         rawData = data['data']
         info = rawData['info']
         funds = rawData['info']['funds']
-        print funds
+        self.balance['freezed'] = {}
+        self.balance['free'] = {}
+        for coin in funds['freezed']:
+            self.balance['freezed'][coin] = float(funds['freezed'][coin])
+            self.balance['free'][coin] = float(funds['free'][coin])
         # 持仓信息
         for symbol in ['btc', 'ltc','eth', self.currency]:
             if symbol in funds['free']:
@@ -537,7 +547,7 @@ class Api(OkCoinApi):
         
         rawData = data['data']
         info = rawData['info']
-        
+
         # 持仓信息
         for symbol in ['btc', 'ltc','eth', self.currency]:
             if symbol in info['free']:
