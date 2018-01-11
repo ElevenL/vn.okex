@@ -122,6 +122,7 @@ class OkcoinGateway(VtGateway):
         self.fileName = self.gatewayName + '_connect.json'
         self.filePath = getJsonPath(self.fileName, __file__)
         self.registeHandle()
+        self.tradeTest = True
         
     #----------------------------------------------------------------------
     def connect(self):
@@ -245,16 +246,36 @@ class OkcoinGateway(VtGateway):
 
     def pTick(self, event):
         tick = event.dict_['data']
+        print '========tick============='
         print tick.symbol
-        # print tick.symbol
-        # print tick.askPrice1
-        # print tick.askVolume1
-        # print tick.bidPrice1
-        # print tick.bidVolume1
+        print tick.askPrice1
+        print tick.askVolume1
+        print tick.bidPrice1
+        print tick.bidVolume1
+        if self.tradeTest:
+            req = VtOrderReq()
+            req.symbol = tick.symbol
+            req.priceType = 'buy'
+            req.price = tick.askPrice1
+            req.volume = 0.1
+            self.sendOrder(req)
+            self.tradeTest = False
+
+    def pAccount(self, event):
+        account = event.dict_['data']
+        print '=======account========'
+        print account
+
+    def pOrder(self, event):
+        order = event.dict_['data']
+        print '=======order========'
+        print order
 
     def registeHandle(self):
         '''注册处理机'''
         self.eventEngine.register(EVENT_TICK, self.pTick)
+        self.eventEngine.register(EVENT_ACCOUNT, self.pAccount)
+        self.eventEngine.register(EVENT_ORDER, self.pOrder)
 
 ########################################################################
 class Api(OkCoinApi):
@@ -273,6 +294,9 @@ class Api(OkCoinApi):
         self.cbDict = {}
         self.tickDict = {}
         self.orderDict = {}
+        self.account = {}
+        self.account['free'] = {}
+        self.account['freezed'] = {}
         self.balance = {}
         self.depth = {}
         
@@ -281,13 +305,13 @@ class Api(OkCoinApi):
         self.localNoDict = {}           # key为本地委托号，value为系统委托号
         self.orderIdDict = {}           # key为系统委托号，value为本地委托号
         self.cancelDict = {}            # key为本地委托号，value为撤单请求
-        
-        self.initCallback()
+
         
     #----------------------------------------------------------------------
     def onMessage(self, ws, evt):
-        """信息推送""" 
+        """信息推送"""
         data = self.readData(evt)[0]
+        print data
         channel = data['channel']
         callback = self.getCallback(channel)
         callback(data)
@@ -332,22 +356,22 @@ class Api(OkCoinApi):
         print 'open'
         
         # 连接后查询账户和委托数据
-        # self.spotUserInfo()
+        self.spotUserInfo()
         #
         # self.spotOrderInfo(vnokcoin.TRADING_SYMBOL_LTC, '-1')
         # self.spotOrderInfo(vnokcoin.TRADING_SYMBOL_BTC, '-1')
         # self.spotOrderInfo(vnokcoin.TRADING_SYMBOL_ETH, '-1')
 
         # 连接后订阅现货的成交和账户数据
-        # self.subscribeSpotTrades()
+        # self.subscribeSpotTrades('mco_btc')
         # self.subscribeSpotUserInfo()
         #
         # self.subscribeSpotTicker(vnokcoin.SYMBOL_BTC)
         # self.subscribeSpotTicker(vnokcoin.SYMBOL_LTC)
         # self.subscribeSpotTicker(vnokcoin.SYMBOL_ETH)
 
-        self.subscribeSpotDepth('eth_btc', '5')
-        self.subscribeSpotDepth('ltc_btc', '5')
+        self.subscribeSpotDepth('mco_btc', '5')
+        # self.subscribeSpotDepth('ltc_btc', '5')
         # self.subscribeSpotDepth(vnokcoin.SYMBOL_LTC, vnokcoin.DEPTH_20)
         # self.subscribeSpotDepth(vnokcoin.SYMBOL_ETH, vnokcoin.DEPTH_20)
 
@@ -374,47 +398,6 @@ class Api(OkCoinApi):
         log.gatewayName = self.gatewayName
         log.logContent = content
         self.gateway.onLog(log)
-        
-    #----------------------------------------------------------------------
-    def initCallback(self):
-        """初始化回调函数"""
-        # USD_SPOT
-        self.cbDict['ok_sub_spot_eth_btc_ticker'] = self.onTicker
-        self.cbDict['ok_sub_spotusd_ltc_ticker'] = self.onTicker
-        self.cbDict['ok_sub_spotusd_eth_ticker'] = self.onTicker
-
-        self.cbDict['ok_sub_spot_eth_btc_depth_5'] = self.onDepth
-        self.cbDict['ok_sub_spotusd_ltc_depth_20'] = self.onDepth
-        self.cbDict['ok_sub_spotusd_eth_depth_20'] = self.onDepth
-
-        self.cbDict['ok_spotusd_userinfo'] = self.onSpotUserInfo
-        self.cbDict['ok_spotusd_orderinfo'] = self.onSpotOrderInfo
-        
-        self.cbDict['ok_sub_spotusd_userinfo'] = self.onSpotSubUserInfo
-        self.cbDict['ok_sub_spotusd_trades'] = self.onSpotSubTrades
-        
-        self.cbDict['ok_spotusd_trade'] = self.onSpotTrade
-        self.cbDict['ok_spotusd_cancel_order'] = self.onSpotCancelOrder
-        
-        # CNY_SPOT
-        self.cbDict['ok_sub_spotcny_btc_ticker'] = self.onTicker
-        self.cbDict['ok_sub_spotcny_ltc_ticker'] = self.onTicker        
-        self.cbDict['ok_sub_spotcny_eth_ticker'] = self.onTicker
-
-        self.cbDict['ok_sub_spotcny_btc_depth_20'] = self.onDepth
-        self.cbDict['ok_sub_spotcny_ltc_depth_20'] = self.onDepth
-        self.cbDict['ok_sub_spotcny_eth_depth_20'] = self.onDepth
-
-        self.cbDict['ok_spotcny_userinfo'] = self.onSpotUserInfo
-        self.cbDict['ok_spotcny_orderinfo'] = self.onSpotOrderInfo
-        
-        self.cbDict['ok_sub_spotcny_userinfo'] = self.onSpotSubUserInfo
-        self.cbDict['ok_sub_spotcny_trades'] = self.onSpotSubTrades
-        
-        self.cbDict['ok_spotcny_trade'] = self.onSpotTrade
-        self.cbDict['ok_spotcny_cancel_order'] = self.onSpotCancelOrder        
-
-        # USD_FUTURES
 
     # ----------------------------------------------------------------------
     def getCallback(self, channel):
@@ -501,7 +484,7 @@ class Api(OkCoinApi):
         tick.date, tick.time = generateDateTime(rawData['timestamp'])
         newtick = copy(tick)
         self.depth[symbol] = newtick
-        print self.depth
+        # print self.depth
         self.gateway.onTick(newtick)
     
     #----------------------------------------------------------------------
@@ -510,11 +493,10 @@ class Api(OkCoinApi):
         rawData = data['data']
         info = rawData['info']
         funds = rawData['info']['funds']
-        self.balance['freezed'] = {}
-        self.balance['free'] = {}
         for coin in funds['freezed']:
-            self.balance['freezed'][coin] = float(funds['freezed'][coin])
-            self.balance['free'][coin] = float(funds['free'][coin])
+            self.account['freezed'][coin] = float(funds['freezed'][coin])
+            self.account['free'][coin] = float(funds['free'][coin])
+        print self.account
         # 持仓信息
         for symbol in ['btc', 'ltc','eth', self.currency]:
             if symbol in funds['free']:
@@ -524,7 +506,7 @@ class Api(OkCoinApi):
                 pos.symbol = symbol
                 pos.vtSymbol = symbol
                 pos.vtPositionName = symbol
-                pos.direction = DIRECTION_NET
+                # pos.direction = DIRECTION_NET
                 
                 pos.frozen = float(funds['freezed'][symbol])
                 pos.position = pos.frozen + float(funds['free'][symbol])
@@ -540,6 +522,7 @@ class Api(OkCoinApi):
         self.gateway.onAccount(account)    
         
     #----------------------------------------------------------------------
+
     def onSpotSubUserInfo(self, data):
         """现货账户资金推送"""
         if 'data' not in data:
@@ -547,7 +530,9 @@ class Api(OkCoinApi):
         
         rawData = data['data']
         info = rawData['info']
-
+        self.balance['free'] = float(info['free']['btc'])
+        self.balance['freezed'] = float(info['freezed']['btc'])
+        print self.balance
         # 持仓信息
         for symbol in ['btc', 'ltc','eth', self.currency]:
             if symbol in info['free']:
@@ -557,7 +542,7 @@ class Api(OkCoinApi):
                 pos.symbol = symbol
                 pos.vtSymbol = symbol
                 pos.vtPositionName = symbol
-                pos.direction = DIRECTION_NET
+                # pos.direction = DIRECTION_NET
                 
                 pos.frozen = float(info['freezed'][symbol])
                 pos.position = pos.frozen + float(info['free'][symbol])
@@ -565,12 +550,13 @@ class Api(OkCoinApi):
                 self.gateway.onPosition(pos)  
                 
     #----------------------------------------------------------------------
+
     def onSpotSubTrades(self, data):
         """成交和委托推送"""
         if 'data' not in data:
             return
         rawData = data['data']
-        
+        print rawData
         # 本地和系统委托号
         orderId = str(rawData['orderId'])
         localNo = self.orderIdDict[orderId]
@@ -580,7 +566,7 @@ class Api(OkCoinApi):
             order = VtOrderData()
             order.gatewayName = self.gatewayName
             
-            order.symbol = spotSymbolMap[rawData['symbol']]
+            order.symbol = rawData['symbol']
             order.vtSymbol = order.symbol
     
             order.orderID = localNo
@@ -588,14 +574,14 @@ class Api(OkCoinApi):
             
             order.price = float(rawData['tradeUnitPrice'])
             order.totalVolume = float(rawData['tradeAmount'])
-            order.direction, priceType = priceTypeMap[rawData['tradeType']]    
+            order.direction, = rawData['tradeType']
             
             self.orderDict[orderId] = order
         else:
             order = self.orderDict[orderId]
             
         order.tradedVolume = float(rawData['completedTradeAmount'])
-        order.status = statusMap[rawData['status']]
+        order.status = rawData['status']
         
         self.gateway.onOrder(copy(order))
         
@@ -604,10 +590,10 @@ class Api(OkCoinApi):
             trade = VtTradeData()
             trade.gatewayName = self.gatewayName
             
-            trade.symbol = spotSymbolMap[rawData['symbol']]
+            trade.symbol = rawData['symbol']
             trade.vtSymbol = order.symbol            
             
-            trade.tradeID = str(rawData['id'])
+            trade.tradeID = str(rawData['orderId'])
             trade.vtTradeID = '.'.join([self.gatewayName, trade.tradeID])
             
             trade.orderID = localNo
@@ -616,11 +602,18 @@ class Api(OkCoinApi):
             trade.price = float(rawData['sigTradePrice'])
             trade.volume = float(rawData['sigTradeAmount'])
             
-            trade.direction, priceType = priceTypeMap[rawData['tradeType']]    
+            trade.direction = rawData['tradeType']
             
             trade.tradeTime = datetime.now().strftime('%H:%M:%S')
             
             self.gateway.onTrade(trade)
+        self.orderDict[orderId] = order
+        print '==========order============'
+        print order.symbol
+        print order.orderId
+        print order.status
+        self.gateway.onOrder(copy(order))
+
         
     #----------------------------------------------------------------------
     def onSpotOrderInfo(self, data):
@@ -639,7 +632,7 @@ class Api(OkCoinApi):
                 order = VtOrderData()
                 order.gatewayName = self.gatewayName
                 
-                order.symbol = spotSymbolMap[d['symbol']]
+                order.symbol = d['symbol']
                 order.vtSymbol = order.symbol
     
                 order.orderID = localNo
@@ -647,15 +640,19 @@ class Api(OkCoinApi):
                 
                 order.price = d['price']
                 order.totalVolume = d['amount']
-                order.direction, priceType = priceTypeMap[d['type']]
+                order.direction = d['type']
                 
                 self.orderDict[orderId] = order
             else:
                 order = self.orderDict[orderId]
                 
             order.tradedVolume = d['deal_amount']
-            order.status = statusMap[d['status']]            
-            
+            order.status = d['status']
+            self.orderDict[orderId] = order
+            print '==========order============'
+            print order.symbol
+            print order.orderId
+            print order.status
             self.gateway.onOrder(copy(order))
     
     #----------------------------------------------------------------------
@@ -720,7 +717,7 @@ class Api(OkCoinApi):
         """委托回报"""
         rawData = data['data']
         orderId = rawData['order_id']
-        
+        print orderId
         # 尽管websocket接口的委托号返回是异步的，但经过测试是
         # 符合先发现回的规律，因此这里通过queue获取之前发送的
         # 本地委托号，并把它和推送的系统委托号进行映射
@@ -744,9 +741,7 @@ class Api(OkCoinApi):
     #----------------------------------------------------------------------
     def spotSendOrder(self, req):
         """发单"""
-        symbol = spotSymbolMapReverse[req.symbol][:4]
-        type_ = priceTypeMapReverse[(req.direction, req.priceType)]
-        self.spotTrade(symbol, type_, str(req.price), str(req.volume))
+        self.spotTrade(req.symbol, req.priceType, str(req.price), str(req.volume))
         
         # 本地委托号加1，并将对应字符串保存到队列中，返回基于本地委托号的vtOrderID
         self.localNo += 1
@@ -757,9 +752,9 @@ class Api(OkCoinApi):
     #----------------------------------------------------------------------
     def spotCancel(self, req):
         """撤单"""
-        symbol = spotSymbolMapReverse[req.symbol][:4]
+        symbol = req.symbol
         localNo = req.orderID
-        
+        self.spotCancelOrder(req.symbol, req.orderID)
         if localNo in self.localNoDict:
             orderID = self.localNoDict[localNo]
             self.spotCancelOrder(symbol, orderID)
