@@ -46,62 +46,19 @@ statusMap[4] = STATUS_UNKNOWN
 ## 交易合约代码
 ############################################
 
-# USD
-ETH_BTC_SPOT = 'ETH_BTC_SPOT'
-BTC_USD_THISWEEK = 'BTC_USD_THISWEEK'
-BTC_USD_NEXTWEEK = 'BTC_USD_NEXTWEEK'
-BTC_USD_QUARTER = 'BTC_USD_QUARTER'
+SYMBOL = ['ace', 'act', 'amm', 'ark', 'ast', 'avt', 'bnt', 'btm', 'cmt', 'ctr',
+          'cvc', 'dash', 'dat', 'dgb', 'dgd', 'dnt', 'dpy', 'edo', 'elf', 'eng',
+          'eos', 'etc', 'evx', 'fun', 'gas', 'gnt', 'gnx', 'hsr', 'icn', 'icx',
+          'iota', 'itc', 'kcash', 'knc', 'link', 'lrc', 'ltc', 'mana', 'mco',
+          'mda', 'mdt', 'mth', 'nas', 'neo', 'nuls', 'oax', 'omg', 'pay',
+          'ppt', 'pro', 'qtum', 'qvt', 'rcn', 'rdn', 'read', 'req', 'rnt', 'salt',
+          'san', 'sngls', 'snm', 'snt', 'ssc', 'storj', 'sub', 'swftc',
+          'tnb', 'trx', 'ugc', 'ukg', 'vee', 'wrc', 'wtc', 'xem', 'xlm', 'xmr',
+          'xrp', 'xuc', 'yoyo', 'zec', 'zrx', '1st']
 
-LTC_USD_SPOT = 'LTC_USD_SPOT'
-LTC_USD_THISWEEK = 'LTC_USD_THISWEEK'
-LTC_USD_NEXTWEEK = 'LTC_USD_NEXTWEEK'
-LTC_USD_QUARTER = 'LTC_USD_QUARTER'
-
-ETH_USD_SPOT = 'ETH_USD_SPOT'
-ETH_USD_THISWEEK = 'ETH_USD_THISWEEK'
-ETH_USD_NEXTWEEK = 'ETH_USD_NEXTWEEK'
-ETH_USD_QUARTER = 'ETH_USD_QUARTER'
-
-# CNY
-BTC_CNY_SPOT = 'BTC_CNY_SPOT'
-LTC_CNY_SPOT = 'LTC_CNY_SPOT'
-ETH_CNY_SPOT = 'ETH_CNY_SPOT'
-
-# 印射字典
-spotSymbolMap = {}
-spotSymbolMap['ltc_usd'] = LTC_USD_SPOT
-spotSymbolMap['eth_btc'] = ETH_BTC_SPOT
-spotSymbolMap['ETH_usd'] = ETH_USD_SPOT
-spotSymbolMap['ltc_cny'] = LTC_CNY_SPOT
-spotSymbolMap['btc_cny'] = BTC_CNY_SPOT
-spotSymbolMap['eth_cny'] = ETH_CNY_SPOT
-spotSymbolMapReverse = {v: k for k, v in spotSymbolMap.items()}
 
 
 ############################################
-## Channel和Symbol的印射
-############################################
-channelSymbolMap = {}
-
-# USD
-channelSymbolMap['ok_sub_spot_eth_btc_ticker'] = ETH_BTC_SPOT
-channelSymbolMap['ok_sub_spotusd_ltc_ticker'] = LTC_USD_SPOT
-channelSymbolMap['ok_sub_spotusd_eth_ticker'] = ETH_USD_SPOT
-
-channelSymbolMap['ok_sub_spot_eth_btc_depth_5'] = ETH_BTC_SPOT
-channelSymbolMap['ok_sub_spotusd_ltc_depth_20'] = LTC_USD_SPOT
-channelSymbolMap['ok_sub_spotusd_eth_depth_20'] = ETH_USD_SPOT
-
-# CNY
-channelSymbolMap['ok_sub_spotcny_btc_ticker'] = BTC_CNY_SPOT
-channelSymbolMap['ok_sub_spotcny_ltc_ticker'] = LTC_CNY_SPOT
-channelSymbolMap['ok_sub_spotcny_eth_ticker'] = ETH_CNY_SPOT
-
-channelSymbolMap['ok_sub_spotcny_btc_depth_20'] = BTC_CNY_SPOT
-channelSymbolMap['ok_sub_spotcny_ltc_depth_20'] = LTC_CNY_SPOT
-channelSymbolMap['ok_sub_spotcny_eth_depth_20'] = ETH_CNY_SPOT
-
-
 
 
 ########################################################################
