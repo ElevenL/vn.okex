@@ -275,6 +275,8 @@ class OkcoinGateway(VtGateway):
 
     def pOrder(self, event):
         order = event.dict_['data']
+        if order.status == 2 and order.orderID in self.api.orderDict:
+            self.api.orderDict.pop(order.orderID)
         print '=======order========'
         print order.symbol
         print order.orderID
