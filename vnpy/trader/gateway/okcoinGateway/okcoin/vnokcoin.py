@@ -190,7 +190,32 @@ class OkCoinApi(object):
         if self.thread and self.thread.isAlive():
             self.ws.close()
             self.thread.join()
-        
+
+    # ----------------------------------------------------------------------
+    def login(self):
+        """发送行情请求"""
+        # 生成请求
+        params = {}
+        params['api_key'] = self.apiKey
+        params['sign'] = self.generateSign(params)
+
+        d = {}
+        d['event'] = 'login'
+        d['binary'] = 1
+        d['channel'] = 'login'
+        d['parameters'] = params
+
+        # 使用json打包并发送
+        j = json.dumps(d)
+
+        # 若触发异常则重连
+        try:
+            self.ws.send(j)
+        except websocket.WebSocketConnectionClosedException:
+            pass
+
+
+
     #----------------------------------------------------------------------
     def sendMarketDataRequest(self, channel):
         """发送行情请求"""

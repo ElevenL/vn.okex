@@ -171,7 +171,13 @@ class OkcoinGateway(VtGateway):
         # 启动查询
         self.initQuery()
         self.startQuery()
-    
+
+    #----------------------------------------------------------------------
+    def login(self):
+        """订阅订单回报"""
+        return self.api.login()
+
+
     #----------------------------------------------------------------------
     def subscribe(self, subscribeReq):
         """订阅行情"""
@@ -255,7 +261,7 @@ class OkcoinGateway(VtGateway):
         if self.tradeTest:
             req = VtOrderReq()
             req.symbol = tick.symbol
-            req.priceType = 'buy'
+            req.priceType = 'sell'
             req.price = tick.askPrice1
             req.volume = 0.1
             self.sendOrder(req)
@@ -356,6 +362,7 @@ class Api(OkCoinApi):
         print 'open'
         
         # 连接后查询账户和委托数据
+        self.login()
         self.spotUserInfo()
         #
         # self.spotOrderInfo(vnokcoin.TRADING_SYMBOL_LTC, '-1')
