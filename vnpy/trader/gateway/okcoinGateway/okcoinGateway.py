@@ -17,6 +17,8 @@ from threading import Condition
 from Queue import Queue
 from threading import Thread
 from time import sleep
+from operator import itemgetter
+from itertools import *
 
 from okcoin.vnokcoin import OkCoinApi,OKCOIN_USD
 from vnpy.trader.vtGateway import *
@@ -122,7 +124,10 @@ class OkcoinGateway(VtGateway):
         self.fileName = self.gatewayName + '_connect.json'
         self.filePath = getJsonPath(self.fileName, __file__)
         self.registeHandle()
+        self.tradeSymbols = []
         self.tradeTest = True
+
+        self.coin2tradeSymbols()
         
     #----------------------------------------------------------------------
     def connect(self):
@@ -171,7 +176,22 @@ class OkcoinGateway(VtGateway):
         # 启动查询
         self.initQuery()
         self.startQuery()
-    
+
+    #----------------------------------------------------------------------
+    def coin2tradeSymbols(self, coins):
+        """币种转换成合约代码"""
+        coinList = []
+        for k in permutations(coins, 2):
+            tmp = ['btc', k[0], 'eth', k[1]]
+            coinList.append(tmp)
+
+        for c in coinList:
+            s = ['_'.join((c[1], c[0])),
+                 '_'.join((c[1], c[2])),
+                 '_'.join((c[3], c[2])),
+                 '_'.join((c[3], c[0]))]
+            self.tradeSymbols.append(s)
+
     #----------------------------------------------------------------------
     def subscribe(self, subscribeReq):
         """订阅行情"""
