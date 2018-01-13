@@ -326,7 +326,7 @@ class OkCoinApi(object):
     #----------------------------------------------------------------------
     def subscribeSpotTrades(self, symbol):
         """订阅现货成交信息"""
-        channel = 'ok_sub_spot_%s_order' %symbol
+        channel = 'ok_sub_spot_%s_order' % symbol
         
         self.sendTradingRequest(channel, {})
         
