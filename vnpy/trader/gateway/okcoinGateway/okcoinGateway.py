@@ -12,7 +12,7 @@ import os
 import json
 from datetime import datetime
 from time import sleep
-from copy import copy
+from copy import copy, deepcopy
 from threading import Condition
 from Queue import Queue
 from threading import Thread
@@ -135,18 +135,16 @@ class OkcoinGateway(VtGateway):
         self.startQuery()
 
     #----------------------------------------------------------------------
-    def coin2tradeSymbols(self, coins):
+    def coin2tradeSymbols(self):
         """币种转换成合约代码"""
         coinList = []
-        for k in permutations(coins, 2):
-            tmp = ['btc', k[0], 'eth', k[1]]
-            coinList.append(tmp)
+        for k in SYMBOL:
+            coinList.append(['btc', k, 'eth'])
 
         for c in coinList:
             s = ['_'.join((c[1], c[0])),
                  '_'.join((c[1], c[2])),
-                 '_'.join((c[3], c[2])),
-                 '_'.join((c[3], c[0]))]
+                 'eth_btc']
             self.tradeSymbols.append(s)
 
 
@@ -157,9 +155,13 @@ class OkcoinGateway(VtGateway):
 
 
     #----------------------------------------------------------------------
-    def subscribe(self, subscribeReq):
+    def subscribe(self):
         """订阅行情"""
-        pass
+        for coin in SYMBOL[:10]:
+            bs = coin + '_btc'
+            es = coin + '_eth'
+            self.api.subscribeSpotDepth(bs, '5')
+            self.api.subscribeSpotDepth(es, '5')
         
     #----------------------------------------------------------------------
     def sendOrder(self, orderReq):
@@ -192,10 +194,11 @@ class OkcoinGateway(VtGateway):
         """初始化连续查询"""
         if self.qryEnabled:
             # 需要循环的查询函数列表
-            self.qryFunctionList = [self.qryAccount]
+            # self.qryFunctionList = [self.qryAccount]
+            self.qryFunctionList = [self.tradePolicy]
             
             self.qryCount = 0           # 查询触发倒计时
-            self.qryTrigger = 2         # 查询触发点
+            self.qryTrigger = 1         # 查询触发点
             self.qryNextFunction = 0    # 上次运行的查询函数索引
             
             self.startQuery()  
@@ -228,43 +231,172 @@ class OkcoinGateway(VtGateway):
         """设置是否要启动循环查询"""
         self.qryEnabled = qryEnabled
 
+    # ----------------------------------------------------------------------
     def pTick(self, event):
         tick = event.dict_['data']
-        print '========tick============='
-        print tick.symbol
-        print tick.askPrice1
-        print tick.askVolume1
-        print tick.bidPrice1
-        print tick.bidVolume1
-        if self.tradeTest:
-            req = VtOrderReq()
-            req.symbol = tick.symbol
-            req.priceType = 'sell'
-            req.price = tick.bidPrice1
-            req.volume = 0.09
-            self.sendOrder(req)
-            print 'send order!'
-            self.tradeTest = False
+        # print '========tick============='
+        # print tick.symbol
+        # print tick.askPrice1
+        # print tick.askVolume1
+        # print tick.bidPrice1
+        # print tick.bidVolume1
+        # if self.tradeTest:
+        #     req = VtOrderReq()
+        #     req.symbol = tick.symbol
+        #     req.priceType = 'sell'
+        #     req.price = tick.bidPrice1
+        #     req.volume = 0.09
+        #     self.sendOrder(req)
+        #     print 'send order!'
+        #     self.tradeTest = False
 
+    # ----------------------------------------------------------------------
     def pAccount(self, event):
         account = event.dict_['data']
-        print '=======account========'
-        print self.api.account
+        # print '=======account========'
+        # print self.api.account
 
+    # ----------------------------------------------------------------------
     def pOrder(self, event):
         order = event.dict_['data']
         if order.status == 2 and order.orderID in self.api.orderDict:
             self.api.orderDict.pop(order.orderID)
-        print '=======order========'
-        print order.symbol
-        print order.orderID
-        print order.status
+        # print '=======order========'
+        # print order.symbol
+        # print order.orderID
+        # print order.status
 
+    # ----------------------------------------------------------------------
     def pBalance(self, event):
         balance = event.dict_['data']
-        print '=======balance========'
-        print self.api.account
+        # print '=======balance========'
+        # print self.api.account
 
+    # ----------------------------------------------------------------------
+    def pLog(self, event):
+        log = event.dict_['data']
+        loginfo = ':'.join([log.logTime, log.logContent])
+        # send_msg(loginfo)
+        self.today = datetime.now().date().strftime('%Y-%m-%d')
+        filename = config.basePath + 'myctp/vn.trader/ctpGateway/log/%s' % ('tradeLog' + '-' + self.today + '.txt')
+        if os.path.exists(filename):
+            fp = file(filename, 'a+')
+            try:
+                fp.write(loginfo.encode('utf-8') + '\n')
+            finally:
+                fp.close()
+        else:
+            fp = file(filename, 'wb')
+            try:
+                fp.write(loginfo.encode('utf-8') + '\n')
+            finally:
+                fp.close()
+
+    # ----------------------------------------------------------------------
+    def prepare(self, symbols):
+        '''获取盈利空间和转换后的btc交易量'''
+        # print 'in prepare'
+        # print self.api.depth
+        depth = deepcopy(self.api.depth)
+        for s in symbols:
+            if s not in depth.keys():
+                return depth, 0, 0
+        profit = (float(depth[symbols[1]].bidPrice1) * float(depth[symbols[2]].bidPrice1)) / \
+                float(depth[symbols[0]].askPrice1)
+        if profit > 1.01:   #设置最小盈利空间为1.5%
+            amount = []
+            amount.append(float(depth[symbols[0]].askPrice1) * min(float(depth[symbols[0]].askVolume1),
+                                                                     float(depth[symbols[1]].bidVolume1)))
+            amount.append(float(depth[symbols[2]].bidPrice1) * float(depth[symbols[2]].bidVolume1))
+            amount.sort()
+            return depth, profit, amount[0]
+        else:
+            return depth, 0, 0
+
+    # ----------------------------------------------------------------------
+    def getAmount(self):
+        '''获取盈利最大的合约组合，并计算每个合约的交易量'''
+        for ts in self.tradeSymbols:
+            depth, profit, amount = self.prepare(ts)
+            if amount > 0.002:     #设置最小btc交易量为0.002
+                tradeSymbol = {}
+                tradeSymbol['symbol'] = ts
+                tradeSymbol['profit'] = profit
+                tradeSymbol['amount'] = amount
+                tradeSymbol['total'] = profit * amount
+                print '=======in getAmount======='
+                print 'symbol:', tradeSymbol['symbol']
+                print 'profit:', tradeSymbol['profit']
+                print 'amount:', tradeSymbol['amount']
+                print 'depth1:', depth[tradeSymbol['symbol'][0]].askPrice1, depth[tradeSymbol['symbol'][0]].askVolume1
+                print 'depth2:', depth[tradeSymbol['symbol'][1]].bidPrice1, depth[tradeSymbol['symbol'][1]].bidVolume1
+                print 'depth3:', depth[tradeSymbol['symbol'][2]].bidPrice1, depth[tradeSymbol['symbol'][2]].bidVolume1
+
+                if self.api.account['free']['btc'] <= tradeSymbol['amount']:
+                    initAmount = self.api.account['free']['btc']
+                else:
+                    initAmount = tradeSymbol['amount']
+                amountDict = {}
+                amountDict[tradeSymbol['symbol'][0]] = round(initAmount * 0.998 / float(depth[tradeSymbol['symbol'][0]].askPrice1), 8)
+                amountDict[tradeSymbol['symbol'][1]] = round(amountDict[tradeSymbol['symbol'][0]] * 0.99898, 8)
+                amountDict[tradeSymbol['symbol'][2]] = round(((amountDict[tradeSymbol['symbol'][1]]*\
+                                                                     float(depth[tradeSymbol['symbol'][1]].bidPrice1) * 0.9989)), 8)
+                return depth, tradeSymbol['symbol'], amountDict
+        else:
+            return depth, [], {}
+
+    # ----------------------------------------------------------------------
+    def tradePolicy(self):
+        tradeList = []
+        depth, symbols, amount = self.getAmount()
+        if symbols == []:
+            return False
+        self.api.writeLog('[Start Polocy]')
+        # if True:
+        #     return
+        for i in range(10):
+            if symbols[0] not in tradeList and self.api.account['free']['btc'] >= amount[symbols[0]] * float(depth[symbols[0]].askPrice1):
+                print 'step1'
+                req = VtOrderReq()
+                req.symbol = symbols[0]
+                req.priceType = 'buy_market'
+                print 'step2'
+                req.price = float(depth[symbols[0]].askPrice1) * amount[symbols[0]]
+                print 'step3'
+                req.volume = ''
+                print 'step4'
+                self.sendOrder(req)
+                tradeList.append(symbols[0])
+            if symbols[1] not in tradeList and self.api.account['free'][symbols[1].split('_')[0]] >= amount[symbols[1]]:
+                req = VtOrderReq()
+                req.symbol = symbols[1]
+                req.priceType = 'sell_market'
+                req.price = ''
+                req.volume = amount[symbols[1]]
+                self.sendOrder(req)
+                tradeList.append(symbols[1])
+            if symbols[2] not in tradeList and self.api.account['free']['eth'] >= amount[symbols[2]]:
+                req = VtOrderReq()
+                req.symbol = symbols[2]
+                req.priceType = 'sell_market'
+                req.price = ''
+                req.volume = amount[symbols[2]]
+                self.sendOrder(req)
+                tradeList.append(symbols[2])
+            if len(tradeList) >= 3 and len(self.api.orderDict) == 0:
+                self.api.writeLog('[End Policy]succssed complete all trade!')
+                return
+            sleep(0.5)
+        orders = deepcopy(self.api.orderDict)
+        for id in orders.keys():
+            req = VtCancelOrderReq
+            req.symbol = orders[id].symbol
+            req.orderID = orders[id].orderID
+            self.cancelOrder(req)
+            self.api.orderDict.pop(id)
+        self.api.writeLog('[End Policy]Failed complete all trade!')
+
+    # ----------------------------------------------------------------------
     def registeHandle(self):
         '''注册处理机'''
         self.eventEngine.register(EVENT_TICK, self.pTick)
@@ -294,6 +426,7 @@ class Api(OkCoinApi):
         self.account['freezed'] = {}
         self.balance = {}
         self.depth = {}
+        self.tickCount = 0
         
         self.localNo = 0                # 本地委托号
         self.localNoQueue = Queue()     # 未收到系统委托号的本地委托号队列
@@ -323,7 +456,6 @@ class Api(OkCoinApi):
     def onClose(self, ws):
         """接口断开"""
         # 如果尚未连上，则忽略该次断开提示
-        print 'close'
         if not self.gateway.connected:
             return
         
@@ -336,7 +468,7 @@ class Api(OkCoinApi):
             def reconnect():
                 while not self.gateway.connected:            
                     self.writeLog(u'等待10秒后重新连接')
-                    sleep(10)
+                    sleep(5)
                     if not self.gateway.connected:
                         self.reconnect()
             
@@ -348,10 +480,11 @@ class Api(OkCoinApi):
         """连接成功"""
         self.gateway.connected = True
         self.writeLog(u'服务器连接成功')
-        print 'open'
         
         # 连接后查询账户和委托数据
+        self.writeLog(u'登陆')
         self.login()
+        self.writeLog(u'查询账户信息')
         self.spotUserInfo()
         #
         # self.spotOrderInfo(vnokcoin.TRADING_SYMBOL_LTC, '-1')
@@ -365,8 +498,14 @@ class Api(OkCoinApi):
         # self.subscribeSpotTicker(vnokcoin.SYMBOL_BTC)
         # self.subscribeSpotTicker(vnokcoin.SYMBOL_LTC)
         # self.subscribeSpotTicker(vnokcoin.SYMBOL_ETH)
-
-        self.subscribeSpotDepth('mco_btc', '5')
+        a = ['bch']
+        for coin in SYMBOL:
+            bs = coin + '_btc'
+            es = coin + '_eth'
+            self.subscribeSpotDepth(bs, '5')
+            self.subscribeSpotDepth(es, '5')
+        self.subscribeSpotDepth('eth_btc', '5')
+        # self.subscribeSpotDepth('cmt_btc', '5')
         # self.subscribeSpotDepth('ltc_btc', '5')
         # self.subscribeSpotDepth(vnokcoin.SYMBOL_LTC, vnokcoin.DEPTH_20)
         # self.subscribeSpotDepth(vnokcoin.SYMBOL_ETH, vnokcoin.DEPTH_20)
@@ -393,6 +532,7 @@ class Api(OkCoinApi):
         log = VtLogData()
         log.gatewayName = self.gatewayName
         log.logContent = content
+        print log.logTime,log.logContent
         self.gateway.onLog(log)
 
     # ----------------------------------------------------------------------
@@ -408,10 +548,10 @@ class Api(OkCoinApi):
             return self.onSpotOrderInfo
         elif channel == 'ok_spot_order':
             return self.onSpotTrade
-        elif channel.endswith('_order'):
-            return self.onSpotSubTrades
         elif channel == 'ok_spot_cancel_order':
             return self.onSpotCancelOrder
+        elif channel.endswith('_order'):
+            return self.onSpotSubTrades
         elif channel.endswith('_balance'):
             return self.onSpotSubUserInfo
 
@@ -450,7 +590,7 @@ class Api(OkCoinApi):
             return
         channel = data['channel']
         a = channel.split('_')
-        symbol = '_'.join((a[3], a[4]))
+        symbol = str('_'.join((a[3], a[4])))
         # symbol = channelSymbolMap[channel]
         if symbol not in self.tickDict:
             tick = VtTickData()
@@ -479,7 +619,10 @@ class Api(OkCoinApi):
         
         tick.date, tick.time = generateDateTime(rawData['timestamp'])
         newtick = copy(tick)
+        # self.tickCount += 1
         self.depth[symbol] = newtick
+        # print self.tickCount
+        # print self.depth
         # print self.depth
         self.gateway.onTick(newtick)
     
@@ -487,6 +630,7 @@ class Api(OkCoinApi):
     def onSpotUserInfo(self, data):
         """现货账户资金推送"""
         rawData = data['data']
+        print rawData
         info = rawData['info']
         funds = rawData['info']['funds']
         for coin in funds['freezed']:
@@ -523,14 +667,11 @@ class Api(OkCoinApi):
         """现货账户资金推送"""
         rawData = data['data']
         funds = rawData['info']
-        print 'in onSpotSubUserInfo:',funds
         for coin in funds['free']:
             self.account['freezed'][coin] = float(funds['freezed'][coin])
             self.account['free'][coin] = float(funds['free'][coin])
-        print 'step1'
         # 持仓信息
         for symbol in funds['free']:
-            print 'step2'
             pos = VtPositionData()
             pos.gatewayName = self.gatewayName
 
@@ -541,7 +682,6 @@ class Api(OkCoinApi):
 
             pos.frozen = float(funds['freezed'][symbol])
             pos.position = pos.frozen + float(funds['free'][symbol])
-            print 'step3'
             self.gateway.onPosition(pos)
 
         # # 账户资金
@@ -706,7 +846,10 @@ class Api(OkCoinApi):
     #----------------------------------------------------------------------
     def onSpotTrade(self, data):
         """委托回报"""
+        print 'onSpotTrade', data
         rawData = data['data']
+        if 'order_id' not in rawData:
+            self.writeLog('[order]error_code:%s' % str(rawData['error_code']))
         orderId = rawData['order_id']
         # print orderId
         # 尽管websocket接口的委托号返回是异步的，但经过测试是
@@ -733,7 +876,7 @@ class Api(OkCoinApi):
     def spotSendOrder(self, req):
         """发单"""
         self.spotTrade(req.symbol, req.priceType, str(req.price), str(req.volume))
-        
+        self.writeLog('[SendOrder]%s|%s|%s|%s' % (req.symbol, req.priceType, str(req.price), str(req.volume)))
         # 本地委托号加1，并将对应字符串保存到队列中，返回基于本地委托号的vtOrderID
         self.localNo += 1
         self.localNoQueue.put(str(self.localNo))
@@ -744,15 +887,8 @@ class Api(OkCoinApi):
     def spotCancel(self, req):
         """撤单"""
         symbol = req.symbol
-        localNo = req.orderID
         self.spotCancelOrder(req.symbol, req.orderID)
-        if localNo in self.localNoDict:
-            orderID = self.localNoDict[localNo]
-            self.spotCancelOrder(symbol, orderID)
-        else:
-            # 如果在系统委托号返回前客户就发送了撤单请求，则保存
-            # 在cancelDict字典中，等待返回后执行撤单任务
-            self.cancelDict[localNo] = req
+        self.writeLog('[CancelOrder]%s|%s' % (req.symbol, req.orderID))
     
 #----------------------------------------------------------------------
 def generateDateTime(s):
