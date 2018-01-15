@@ -287,8 +287,10 @@ class OkCoinApi(object):
         params = {}
         params['symbol'] = str(symbol)
         params['type'] = str(type_)
-        params['price'] = str(price)
-        params['amount'] = str(amount)
+        if price:
+            params['price'] = str(price)
+        if amount:
+            params['amount'] = str(amount)
         
         channel = 'ok_spot_order'
         
