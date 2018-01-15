@@ -354,15 +354,15 @@ class OkcoinGateway(VtGateway):
         #     return
         for i in range(20):
             if symbols[0] not in tradeList and self.api.account['free']['btc'] >= amount[symbols[0]] * float(depth[symbols[0]].askPrice1):
-                print 'step1'
+                # print 'step1'
                 req = VtOrderReq()
                 req.symbol = symbols[0]
                 req.priceType = 'buy_market'
-                print 'step2'
+                # print 'step2'
                 req.price = round(float(depth[symbols[0]].askPrice1) * amount[symbols[0]] * 0.9, 8)
-                print 'step3'
+                # print 'step3'
                 req.volume = ''
-                print 'step4'
+                # print 'step4'
                 self.sendOrder(req)
                 tradeList.append(symbols[0])
             if symbols[1] not in tradeList and self.api.account['free'][symbols[1].split('_')[0]] >= amount[symbols[1]] * 0.8:
@@ -628,7 +628,7 @@ class Api(OkCoinApi):
     def onSpotUserInfo(self, data):
         """现货账户资金推送"""
         rawData = data['data']
-        print rawData
+        # print rawData
         info = rawData['info']
         funds = rawData['info']['funds']
         for coin in funds['freezed']:
@@ -782,10 +782,10 @@ class Api(OkCoinApi):
             order.tradedVolume = d['deal_amount']
             order.status = d['status']
             self.orderDict[orderId] = order
-            print '==========order============'
-            print order.symbol
-            print order.orderId
-            print order.status
+            # print '==========order============'
+            # print order.symbol
+            # print order.orderId
+            # print order.status
             self.gateway.onOrder(copy(order))
     
     #----------------------------------------------------------------------
