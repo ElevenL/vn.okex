@@ -370,7 +370,7 @@ class OkcoinGateway(VtGateway):
                 req.symbol = symbols[1]
                 req.priceType = 'sell_market'
                 req.price = ''
-                req.volume = amount[symbols[1]]
+                req.volume = self.api.account['free'][symbols[1].split('_')[0]]
                 self.sendOrder(req)
                 tradeList.append(symbols[1])
             if symbols[2] not in tradeList and self.api.account['free']['eth'] >= amount[symbols[2]] * 0.9:
@@ -378,7 +378,7 @@ class OkcoinGateway(VtGateway):
                 req.symbol = symbols[2]
                 req.priceType = 'sell_market'
                 req.price = ''
-                req.volume = amount[symbols[2]]
+                req.volume = self.api.account['free']['eth']
                 self.sendOrder(req)
                 tradeList.append(symbols[2])
             if len(tradeList) >= 3 and len(self.api.orderDict) == 0:
