@@ -359,7 +359,7 @@ class OkcoinGateway(VtGateway):
                 req.symbol = symbols[0]
                 req.priceType = 'buy_market'
                 print 'step2'
-                req.price = round(float(depth[symbols[0]].askPrice1) * amount[symbols[0]], 8)
+                req.price = round(float(depth[symbols[0]].askPrice1) * amount[symbols[0]] * 0.9, 8)
                 print 'step3'
                 req.volume = ''
                 print 'step4'
@@ -373,7 +373,7 @@ class OkcoinGateway(VtGateway):
                 req.volume = amount[symbols[1]]
                 self.sendOrder(req)
                 tradeList.append(symbols[1])
-            if symbols[2] not in tradeList and self.api.account['free']['eth'] >= amount[symbols[2]]:
+            if symbols[2] not in tradeList and self.api.account['free']['eth'] >= amount[symbols[2]] * 0.9:
                 req = VtOrderReq()
                 req.symbol = symbols[2]
                 req.priceType = 'sell_market'
