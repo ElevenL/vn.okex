@@ -214,6 +214,21 @@ class OkCoinApi(object):
         except websocket.WebSocketConnectionClosedException:
             pass
 
+    # ----------------------------------------------------------------------
+    def ping(self):
+        """心跳请求"""
+        # 生成请求
+        d = {}
+        d['event'] = 'ping'
+
+        # 使用json打包并发送
+        j = json.dumps(d)
+
+        # 若触发异常则重连
+        try:
+            self.ws.send(j)
+        except websocket.WebSocketConnectionClosedException:
+            pass
 
 
     #----------------------------------------------------------------------
