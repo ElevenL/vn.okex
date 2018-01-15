@@ -359,7 +359,7 @@ class OkcoinGateway(VtGateway):
                 req.symbol = symbols[0]
                 req.priceType = 'buy_market'
                 # print 'step2'
-                req.price = round(float(depth[symbols[0]].askPrice1) * amount[symbols[0]] * 0.9, 8)
+                req.price = round(float(depth[symbols[0]].askPrice1) * amount[symbols[0]] * 0.999, 8)
                 # print 'step3'
                 req.volume = ''
                 # print 'step4'
