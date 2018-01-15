@@ -259,8 +259,6 @@ class OkcoinGateway(VtGateway):
     # ----------------------------------------------------------------------
     def pOrder(self, event):
         order = event.dict_['data']
-        if order.status == 2 and order.orderID in self.api.orderDict:
-            self.api.orderDict.pop(order.orderID)
         # print '=======order========'
         # print order.symbol
         # print order.orderID
@@ -354,14 +352,14 @@ class OkcoinGateway(VtGateway):
         self.api.writeLog('[Start Polocy]')
         # if True:
         #     return
-        for i in range(10):
+        for i in range(20):
             if symbols[0] not in tradeList and self.api.account['free']['btc'] >= amount[symbols[0]] * float(depth[symbols[0]].askPrice1):
                 print 'step1'
                 req = VtOrderReq()
                 req.symbol = symbols[0]
                 req.priceType = 'buy_market'
                 print 'step2'
-                req.price = float(depth[symbols[0]].askPrice1) * amount[symbols[0]]
+                req.price = round(float(depth[symbols[0]].askPrice1) * amount[symbols[0]], 8)
                 print 'step3'
                 req.volume = ''
                 print 'step4'
@@ -667,6 +665,7 @@ class Api(OkCoinApi):
         """现货账户资金推送"""
         rawData = data['data']
         funds = rawData['info']
+        self.writeLog(funds)
         for coin in funds['free']:
             self.account['freezed'][coin] = float(funds['freezed'][coin])
             self.account['free'][coin] = float(funds['free'][coin])
@@ -699,7 +698,7 @@ class Api(OkCoinApi):
         if 'data' not in data:
             return
         rawData = data['data']
-
+        self.writeLog(rawData)
         # 本地和系统委托号
         orderId = str(rawData['orderId'])
 
@@ -720,6 +719,9 @@ class Api(OkCoinApi):
 
         order.tradedVolume = float(rawData['completedTradeAmount'])
         order.status = rawData['status']
+        self.orderDict[orderId] = order
+        if str(order.status) == '2':
+            self.orderDict.pop(order.orderID)
         self.gateway.onOrder(copy(order))
 
         # 成交信息
