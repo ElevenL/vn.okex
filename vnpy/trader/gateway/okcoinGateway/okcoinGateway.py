@@ -21,8 +21,8 @@ from operator import itemgetter
 from itertools import *
 
 from okcoin.vnokcoin import OkCoinApi,OKCOIN_USD
-from vnpy.trader.vtGateway import *
-from vnpy.trader.vtFunction import getJsonPath
+from vtGateway import *
+from vtFunction import getJsonPath
 
 # 价格类型映射
 priceTypeMap = {}
@@ -365,20 +365,20 @@ class OkcoinGateway(VtGateway):
                 print 'step4'
                 self.sendOrder(req)
                 tradeList.append(symbols[0])
-            if symbols[1] not in tradeList and self.api.account['free'][symbols[1].split('_')[0]] >= amount[symbols[1]]:
+            if symbols[1] not in tradeList and self.api.account['free'][symbols[1].split('_')[0]] >= amount[symbols[1]] * 0.8:
                 req = VtOrderReq()
                 req.symbol = symbols[1]
                 req.priceType = 'sell_market'
                 req.price = ''
-                req.volume = self.api.account['free'][symbols[1].split('_')[0]]
+                req.volume = self.api.account['free'][symbols[1].split('_')[0]] * 0.999
                 self.sendOrder(req)
                 tradeList.append(symbols[1])
-            if symbols[2] not in tradeList and self.api.account['free']['eth'] >= amount[symbols[2]] * 0.9:
+            if symbols[2] not in tradeList and self.api.account['free']['eth'] >= amount[symbols[2]] * 0.8:
                 req = VtOrderReq()
                 req.symbol = symbols[2]
                 req.priceType = 'sell_market'
                 req.price = ''
-                req.volume = self.api.account['free']['eth']
+                req.volume = self.api.account['free']['eth'] * 0.999
                 self.sendOrder(req)
                 tradeList.append(symbols[2])
             if len(tradeList) >= 3 and len(self.api.orderDict) == 0:

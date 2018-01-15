@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python2
 # encoding: UTF-8
 from PyQt4 import QtCore
 import sys
