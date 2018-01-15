@@ -10,6 +10,7 @@ vn.okcoin的gateway接入
 
 import os
 import json
+import logging
 from datetime import datetime
 from time import sleep
 from copy import copy, deepcopy
@@ -61,7 +62,11 @@ SYMBOL = ['ace', 'act', 'amm', 'ark', 'ast', 'avt', 'bnt', 'btm', 'cmt', 'ctr',
 
 
 ############################################
-
+logging.basicConfig(level=logging.DEBUG,
+                format='%(asctime)s %(levelname)s %(message)s',
+                datefmt='%a, %d %b %Y %H:%M:%S',
+                filename='/root/vn.okex/vnpy/trader/gateway/okcoinGateway/log',
+                filemode='a')
 
 ########################################################################
 class OkcoinGateway(VtGateway):
@@ -322,8 +327,8 @@ class OkcoinGateway(VtGateway):
                 tradeSymbol['profit'] = profit
                 tradeSymbol['amount'] = amount
                 tradeSymbol['total'] = profit * amount
-                print '=======in getAmount======='
-                print 'symbol:', tradeSymbol['symbol']
+                self.api.writeLog('=======in getAmount=======')
+                self.api.writeLog('symbol: %s'% tradeSymbol['symbol'])
                 print 'profit:', tradeSymbol['profit']
                 print 'amount:', tradeSymbol['amount']
                 print 'depth1:', depth[tradeSymbol['symbol'][0]].askPrice1, depth[tradeSymbol['symbol'][0]].askVolume1
