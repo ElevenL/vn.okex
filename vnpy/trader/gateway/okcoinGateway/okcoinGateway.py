@@ -301,7 +301,7 @@ class OkcoinGateway(VtGateway):
                 return depth, 0, 0
         profit = (float(depth[symbols[1]].bidPrice1) * float(depth[symbols[2]].bidPrice1)) / \
                 float(depth[symbols[0]].askPrice1)
-        if profit > 1.01:   #设置最小盈利空间为1.5%
+        if profit > 1.015:   #设置最小盈利空间为1.5%
             amount = []
             amount.append(float(depth[symbols[0]].askPrice1) * min(float(depth[symbols[0]].askVolume1),
                                                                      float(depth[symbols[1]].bidVolume1)))
