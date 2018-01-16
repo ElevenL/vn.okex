@@ -62,6 +62,11 @@ SYMBOL = ['ace', 'act', 'amm', 'ark', 'ast', 'avt', 'bnt', 'btm', 'cmt', 'ctr',
 
 
 ############################################
+# logging.basicConfig(level=logging.DEBUG,
+#                 format='%(asctime)s %(levelname)s %(message)s',
+#                 datefmt='%a, %d %b %Y %H:%M:%S',
+#                 filename='/root/vn.okex/vnpy/trader/gateway/okcoinGateway/log',
+#                 filemode='a')
 
 
 ########################################################################
@@ -69,16 +74,16 @@ class OkcoinGateway(VtGateway):
     """OkCoin接口"""
 
     #----------------------------------------------------------------------
-    def __init__(self, eventEngine, gatewayName='OKCOIN'):
+    def __init__(self, eventEngine, coins, gatewayName='OKCOIN'):
         """Constructor"""
         super(OkcoinGateway, self).__init__(eventEngine, gatewayName)
-        
-        self.api = Api(self)     
-        
+
+        self.coins = coins
+        self.api = Api(self)
         self.leverage = 0
         self.connected = False
 
-        self.qryEnabled = True
+        self.qryEnabled = False
         self.fileName = self.gatewayName + '_connect.json'
         self.filePath = getJsonPath(self.fileName, __file__)
         self.registeHandle()
@@ -138,12 +143,10 @@ class OkcoinGateway(VtGateway):
     #----------------------------------------------------------------------
     def coin2tradeSymbols(self):
         """币种转换成合约代码"""
-        coinList = []
-        for k in SYMBOL:
-            coinList.append(['btc', k, 'eth'])
+        coinList = ['btc', self.coins, 'eth']
 
         for c in coinList:
-            s = ['_'.join((c[1], c[0])),
+            self.tradeSymbols = ['_'.join((c[1], c[0])),
                  '_'.join((c[1], c[2])),
                  'eth_btc']
             self.tradeSymbols.append(s)
@@ -195,11 +198,11 @@ class OkcoinGateway(VtGateway):
         """初始化连续查询"""
         if self.qryEnabled:
             # 需要循环的查询函数列表
-            # self.qryFunctionList = [self.qryAccount]
-            self.qryFunctionList = [self.tradePolicy]
+            self.qryFunctionList = [self.qryAccount]
+            # self.qryFunctionList = [self.tradePolicy]
             
             self.qryCount = 0           # 查询触发倒计时
-            self.qryTrigger = 1         # 查询触发点
+            self.qryTrigger = 2         # 查询触发点
             self.qryNextFunction = 0    # 上次运行的查询函数索引
             
             self.startQuery()  
@@ -235,12 +238,14 @@ class OkcoinGateway(VtGateway):
     # ----------------------------------------------------------------------
     def pTick(self, event):
         tick = event.dict_['data']
-        # print '========tick============='
-        # print tick.symbol
-        # print tick.askPrice1
-        # print tick.askVolume1
-        # print tick.bidPrice1
-        # print tick.bidVolume1
+        self.tradePolicy()
+        # if tick.symbol == 'btm_btc':
+        #     print '========tick============='
+        #     print tick.symbol
+        #     print tick.askPrice1
+        #     print tick.askVolume1
+        #     print tick.bidPrice1
+        #     print tick.bidVolume1
         # if self.tradeTest:
         #     req = VtOrderReq()
         #     req.symbol = tick.symbol
@@ -296,13 +301,14 @@ class OkcoinGateway(VtGateway):
         '''获取盈利空间和转换后的btc交易量'''
         # print 'in prepare'
         # print self.api.depth
-        depth = deepcopy(self.api.depth)
+        # depth = deepcopy(self.api.depth)
+        depth = self.api.depth
         for s in symbols:
             if s not in depth.keys():
                 return depth, 0, 0
         profit = (float(depth[symbols[1]].bidPrice1) * float(depth[symbols[2]].bidPrice1)) / \
                 float(depth[symbols[0]].askPrice1)
-        if profit > 1.015:   #设置最小盈利空间为1.5%
+        if profit > 1.01:   #设置最小盈利空间为1.5%
             amount = []
             amount.append(float(depth[symbols[0]].askPrice1) * min(float(depth[symbols[0]].askVolume1),
                                                                      float(depth[symbols[1]].bidVolume1)))
@@ -315,32 +321,31 @@ class OkcoinGateway(VtGateway):
     # ----------------------------------------------------------------------
     def getAmount(self):
         '''获取盈利最大的合约组合，并计算每个合约的交易量'''
-        for ts in self.tradeSymbols:
-            depth, profit, amount = self.prepare(ts)
-            if amount > 0.002:     #设置最小btc交易量为0.002
-                tradeSymbol = {}
-                tradeSymbol['symbol'] = ts
-                tradeSymbol['profit'] = profit
-                tradeSymbol['amount'] = amount
-                tradeSymbol['total'] = profit * amount
-                self.api.writeLog('=======in getAmount=======')
-                self.api.writeLog('symbol: %s'% tradeSymbol['symbol'])
-                print 'profit:', tradeSymbol['profit']
-                print 'amount:', tradeSymbol['amount']
-                print 'depth1:', depth[tradeSymbol['symbol'][0]].askPrice1, depth[tradeSymbol['symbol'][0]].askVolume1
-                print 'depth2:', depth[tradeSymbol['symbol'][1]].bidPrice1, depth[tradeSymbol['symbol'][1]].bidVolume1
-                print 'depth3:', depth[tradeSymbol['symbol'][2]].bidPrice1, depth[tradeSymbol['symbol'][2]].bidVolume1
+        depth, profit, amount = self.prepare(self.tradeSymbols)
+        if amount > 0.002:     #设置最小btc交易量为0.002
+            tradeSymbol = {}
+            tradeSymbol['symbol'] = self.tradeSymbols
+            tradeSymbol['profit'] = profit
+            tradeSymbol['amount'] = amount
+            tradeSymbol['total'] = profit * amount
+            self.api.writeLog('=======in getAmount=======')
+            self.api.writeLog('symbol: %s'% tradeSymbol['symbol'])
+            print 'profit:', tradeSymbol['profit']
+            print 'amount:', tradeSymbol['amount']
+            print 'depth1:', depth[tradeSymbol['symbol'][0]].askPrice1, depth[tradeSymbol['symbol'][0]].askVolume1
+            print 'depth2:', depth[tradeSymbol['symbol'][1]].bidPrice1, depth[tradeSymbol['symbol'][1]].bidVolume1
+            print 'depth3:', depth[tradeSymbol['symbol'][2]].bidPrice1, depth[tradeSymbol['symbol'][2]].bidVolume1
 
-                if self.api.account['free']['btc'] <= tradeSymbol['amount']:
-                    initAmount = self.api.account['free']['btc']
-                else:
-                    initAmount = tradeSymbol['amount']
-                amountDict = {}
-                amountDict[tradeSymbol['symbol'][0]] = round(initAmount * 0.998 / float(depth[tradeSymbol['symbol'][0]].askPrice1), 8)
-                amountDict[tradeSymbol['symbol'][1]] = round(amountDict[tradeSymbol['symbol'][0]] * 0.99898, 8)
-                amountDict[tradeSymbol['symbol'][2]] = round(((amountDict[tradeSymbol['symbol'][1]]*\
-                                                                     float(depth[tradeSymbol['symbol'][1]].bidPrice1)) * 0.9989), 8)
-                return depth, tradeSymbol['symbol'], amountDict
+            if self.api.account['free']['btc'] <= tradeSymbol['amount']:
+                initAmount = self.api.account['free']['btc']
+            else:
+                initAmount = tradeSymbol['amount']
+            amountDict = {}
+            amountDict[tradeSymbol['symbol'][0]] = round(initAmount * 0.998 / float(depth[tradeSymbol['symbol'][0]].askPrice1), 8)
+            amountDict[tradeSymbol['symbol'][1]] = round(amountDict[tradeSymbol['symbol'][0]] * 0.99898, 8)
+            amountDict[tradeSymbol['symbol'][2]] = round(((amountDict[tradeSymbol['symbol'][1]]*\
+                                                            float(depth[tradeSymbol['symbol'][1]].bidPrice1) * 0.9989)), 8)
+            return depth, tradeSymbol['symbol'], amountDict
         else:
             return depth, [], {}
 
@@ -562,7 +567,7 @@ class Api(OkCoinApi):
         # self.subscribeSpotTicker(vnokcoin.SYMBOL_LTC)
         # self.subscribeSpotTicker(vnokcoin.SYMBOL_ETH)
         a = ['bch']
-        for coin in SYMBOL:
+        for coin in self.gateway.coins:
             bs = coin + '_btc'
             es = coin + '_eth'
             self.subscribeSpotDepth(bs, '5')
@@ -735,18 +740,18 @@ class Api(OkCoinApi):
             self.account['freezed'][coin] = float(funds['freezed'][coin])
             self.account['free'][coin] = float(funds['free'][coin])
         # 持仓信息
-        for symbol in funds['free']:
-            pos = VtPositionData()
-            pos.gatewayName = self.gatewayName
-
-            pos.symbol = symbol
-            pos.vtSymbol = symbol
-            pos.vtPositionName = symbol
-            # pos.direction = DIRECTION_NET
-
-            pos.frozen = float(funds['freezed'][symbol])
-            pos.position = pos.frozen + float(funds['free'][symbol])
-            self.gateway.onPosition(pos)
+        # for symbol in funds['free']:
+        #     pos = VtPositionData()
+        #     pos.gatewayName = self.gatewayName
+        #
+        #     pos.symbol = symbol
+        #     pos.vtSymbol = symbol
+        #     pos.vtPositionName = symbol
+        #     # pos.direction = DIRECTION_NET
+        #
+        #     pos.frozen = float(funds['freezed'][symbol])
+        #     pos.position = pos.frozen + float(funds['free'][symbol])
+        #     self.gateway.onPosition(pos)
 
         # # 账户资金
         # account = VtAccountData()
@@ -763,7 +768,8 @@ class Api(OkCoinApi):
         if 'data' not in data:
             return
         rawData = data['data']
-        self.writeLog(rawData)
+        if rawData['symbol'] in self.gateway.tradeSymbols:
+            self.writeLog(rawData)
         # 本地和系统委托号
         orderId = str(rawData['orderId'])
 
@@ -790,27 +796,27 @@ class Api(OkCoinApi):
         self.gateway.onOrder(copy(order))
 
         # 成交信息
-        if 'sigTradeAmount' in rawData and float(rawData['sigTradeAmount'])>0:
-            trade = VtTradeData()
-            trade.gatewayName = self.gatewayName
-
-            trade.symbol = rawData['symbol']
-            trade.vtSymbol = order.symbol
-
-            trade.tradeID = str(rawData['orderId'])
-            trade.vtTradeID = '.'.join([self.gatewayName, trade.tradeID])
-
-            trade.orderID = str(rawData['orderId'])
-            trade.vtOrderID = '.'.join([self.gatewayName, trade.orderID])
-
-            trade.price = float(rawData['sigTradePrice'])
-            trade.volume = float(rawData['sigTradeAmount'])
-
-            trade.direction = rawData['tradeType']
-
-            trade.tradeTime = datetime.now().strftime('%H:%M:%S')
-
-            self.gateway.onTrade(trade)
+        # if 'sigTradeAmount' in rawData and float(rawData['sigTradeAmount'])>0:
+        #     trade = VtTradeData()
+        #     trade.gatewayName = self.gatewayName
+        #
+        #     trade.symbol = rawData['symbol']
+        #     trade.vtSymbol = order.symbol
+        #
+        #     trade.tradeID = str(rawData['orderId'])
+        #     trade.vtTradeID = '.'.join([self.gatewayName, trade.tradeID])
+        #
+        #     trade.orderID = str(rawData['orderId'])
+        #     trade.vtOrderID = '.'.join([self.gatewayName, trade.orderID])
+        #
+        #     trade.price = float(rawData['sigTradePrice'])
+        #     trade.volume = float(rawData['sigTradeAmount'])
+        #
+        #     trade.direction = rawData['tradeType']
+        #
+        #     trade.tradeTime = datetime.now().strftime('%H:%M:%S')
+        #
+        #     self.gateway.onTrade(trade)
 
         
     #----------------------------------------------------------------------
