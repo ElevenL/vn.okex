@@ -62,11 +62,7 @@ SYMBOL = ['ace', 'act', 'amm', 'ark', 'ast', 'avt', 'bnt', 'btm', 'cmt', 'ctr',
 
 
 ############################################
-logging.basicConfig(level=logging.DEBUG,
-                format='%(asctime)s %(levelname)s %(message)s',
-                datefmt='%a, %d %b %Y %H:%M:%S',
-                filename='/root/vn.okex/vnpy/trader/gateway/okcoinGateway/log',
-                filemode='a')
+
 
 ########################################################################
 class OkcoinGateway(VtGateway):
@@ -343,13 +339,13 @@ class OkcoinGateway(VtGateway):
                 amountDict[tradeSymbol['symbol'][0]] = round(initAmount * 0.998 / float(depth[tradeSymbol['symbol'][0]].askPrice1), 8)
                 amountDict[tradeSymbol['symbol'][1]] = round(amountDict[tradeSymbol['symbol'][0]] * 0.99898, 8)
                 amountDict[tradeSymbol['symbol'][2]] = round(((amountDict[tradeSymbol['symbol'][1]]*\
-                                                                     float(depth[tradeSymbol['symbol'][1]].bidPrice1) * 0.9989)), 8)
+                                                                     float(depth[tradeSymbol['symbol'][1]].bidPrice1)) * 0.9989), 8)
                 return depth, tradeSymbol['symbol'], amountDict
         else:
             return depth, [], {}
 
     # ----------------------------------------------------------------------
-    def tradePolicy(self):
+    def tradePolicy_maket(self):
         tradeList = []
         depth, symbols, amount = self.getAmount()
         if symbols == []:
@@ -397,6 +393,70 @@ class OkcoinGateway(VtGateway):
             req.orderID = orders[id].orderID
             self.cancelOrder(req)
             self.api.orderDict.pop(id)
+        self.api.writeLog('[End Policy]Failed complete all trade!')
+
+    # ----------------------------------------------------------------------
+    def tradePolicy(self):
+        tradeList = []
+        depth, symbols, amount = self.getAmount()
+        if symbols == []:
+            return False
+        self.api.writeLog('[Start Polocy]')
+        # if True:
+        #     return
+        for i in range(20):
+            if symbols[0] not in tradeList and self.api.account['free']['btc'] >= amount[symbols[0]] * float(depth[symbols[0]].askPrice1):
+                # print 'step1'
+                req = VtOrderReq()
+                req.symbol = symbols[0]
+                req.priceType = 'buy'
+                # print 'step2'
+                req.price = depth[symbols[0]].askPrice1
+                # print 'step3'
+                req.volume = amount[symbols[0]]
+                # print 'step4'
+                self.sendOrder(req)
+                tradeList.append(symbols[0])
+            if symbols[1] not in tradeList and self.api.account['free'][symbols[1].split('_')[0]] >= amount[symbols[1]] * 0.9:
+                req = VtOrderReq()
+                req.symbol = symbols[1]
+                req.priceType = 'sell'
+                req.price = depth[symbols[1]].bidPrice1
+                req.volume = round(self.api.account['free'][symbols[1].split('_')[0]] * 0.9999, 8)
+                self.sendOrder(req)
+                tradeList.append(symbols[1])
+            if symbols[2] not in tradeList and self.api.account['free']['eth'] >= amount[symbols[2]] * 0.9:
+                req = VtOrderReq()
+                req.symbol = symbols[2]
+                req.priceType = 'sell'
+                req.price = depth[symbols[2]].bidPrice1
+                req.volume = round(self.api.account['free']['eth'] * 0.9999, 8)
+                self.sendOrder(req)
+                tradeList.append(symbols[2])
+            if len(tradeList) >= 3 and len(self.api.orderDict) == 0:
+                self.api.writeLog('[End Policy]succssed complete all trade!')
+                return
+            sleep(0.5)
+        orders = deepcopy(self.api.orderDict)
+        for id in orders.keys():
+            req = VtCancelOrderReq
+            req.symbol = orders[id].symbol
+            req.orderID = orders[id].orderID
+            self.cancelOrder(req)
+            self.api.orderDict.pop(id)
+        sleep(0.5)
+        req = VtOrderReq()
+        req.symbol = symbols[1]
+        req.priceType = 'sell_market'
+        req.price = ''
+        req.volume = round(self.api.account['free'][symbols[1].split('_')[0]] * 0.9999, 8)
+        self.sendOrder(req)
+        req = VtOrderReq()
+        req.symbol = symbols[2]
+        req.priceType = 'sell_market'
+        req.price = ''
+        req.volume = self.api.account['free']['eth']
+        self.sendOrder(req)
         self.api.writeLog('[End Policy]Failed complete all trade!')
 
     # ----------------------------------------------------------------------

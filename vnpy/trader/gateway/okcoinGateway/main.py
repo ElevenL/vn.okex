@@ -19,8 +19,7 @@ def test():
     # gateway.subscribe()
 
     sys.exit(app.exec_())
-    while(1):
-        pass
+
 
 
 if __name__ == '__main__':
