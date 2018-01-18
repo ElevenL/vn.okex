@@ -143,13 +143,12 @@ class OkcoinGateway(VtGateway):
     #----------------------------------------------------------------------
     def coin2tradeSymbols(self):
         """币种转换成合约代码"""
-        coinList = ['btc', self.coins, 'eth']
+        c = ['btc', self.coins, 'eth']
 
-        for c in coinList:
-            self.tradeSymbols = ['_'.join((c[1], c[0])),
-                 '_'.join((c[1], c[2])),
-                 'eth_btc']
-            self.tradeSymbols.append(s)
+        self.tradeSymbols = ['_'.join((c[1], c[0])),
+            '_'.join((c[1], c[2])),
+            'eth_btc']
+
 
 
     #----------------------------------------------------------------------
@@ -239,7 +238,7 @@ class OkcoinGateway(VtGateway):
     def pTick(self, event):
         tick = event.dict_['data']
         self.tradePolicy()
-        # if tick.symbol == 'btm_btc':
+        # if tick.symbol == 'mco_btc':
         #     print '========tick============='
         #     print tick.symbol
         #     print tick.askPrice1
@@ -308,7 +307,7 @@ class OkcoinGateway(VtGateway):
                 return depth, 0, 0
         profit = (float(depth[symbols[1]].bidPrice1) * float(depth[symbols[2]].bidPrice1)) / \
                 float(depth[symbols[0]].askPrice1)
-        if profit > 1.01:   #设置最小盈利空间为1.5%
+        if profit > 1.02:   #设置最小盈利空间为1.5%
             amount = []
             amount.append(float(depth[symbols[0]].askPrice1) * min(float(depth[symbols[0]].askVolume1),
                                                                      float(depth[symbols[1]].bidVolume1)))
@@ -409,7 +408,7 @@ class OkcoinGateway(VtGateway):
         self.api.writeLog('[Start Polocy]')
         # if True:
         #     return
-        for i in range(20):
+        for i in range(60):
             if symbols[0] not in tradeList and self.api.account['free']['btc'] >= amount[symbols[0]] * float(depth[symbols[0]].askPrice1):
                 # print 'step1'
                 req = VtOrderReq()
@@ -567,11 +566,10 @@ class Api(OkCoinApi):
         # self.subscribeSpotTicker(vnokcoin.SYMBOL_LTC)
         # self.subscribeSpotTicker(vnokcoin.SYMBOL_ETH)
         a = ['bch']
-        for coin in self.gateway.coins:
-            bs = coin + '_btc'
-            es = coin + '_eth'
-            self.subscribeSpotDepth(bs, '5')
-            self.subscribeSpotDepth(es, '5')
+        bs = self.gateway.coins + '_btc'
+        es = self.gateway.coins + '_eth'
+        self.subscribeSpotDepth(bs, '5')
+        self.subscribeSpotDepth(es, '5')
         self.subscribeSpotDepth('eth_btc', '5')
         # self.subscribeSpotDepth('cmt_btc', '5')
         # self.subscribeSpotDepth('ltc_btc', '5')
@@ -672,7 +670,7 @@ class Api(OkCoinApi):
         if 'data' not in data:
             return
         rawData = data['data']
-        
+
         tick.bidPrice1, tick.bidVolume1 = rawData['bids'][0]
         tick.bidPrice2, tick.bidVolume2 = rawData['bids'][1]
         tick.bidPrice3, tick.bidVolume3 = rawData['bids'][2]
