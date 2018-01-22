@@ -25,6 +25,16 @@ from okcoin.vnokcoin import OkCoinApi,OKCOIN_USD
 from vtGateway import *
 from vtFunction import getJsonPath
 
+
+# 全局变量
+ACCOUNT = {}
+ACCOUNT['free'] = {}
+ACCOUNT['freezed'] = {}
+TRADING = False
+ORDERS = {}
+
+
+
 # 价格类型映射
 priceTypeMap = {}
 priceTypeMap['buy'] = (DIRECTION_LONG, PRICETYPE_LIMITPRICE)
@@ -77,7 +87,7 @@ class OkcoinGateway(VtGateway):
     def __init__(self, eventEngine, coins, gatewayName='OKCOIN'):
         """Constructor"""
         super(OkcoinGateway, self).__init__(eventEngine, gatewayName)
-
+        global ACCOUNT,TRADING,ORDERS
         self.coins = coins
         self.api = Api(self)
         self.leverage = 0
@@ -237,7 +247,8 @@ class OkcoinGateway(VtGateway):
     # ----------------------------------------------------------------------
     def pTick(self, event):
         tick = event.dict_['data']
-        self.tradePolicy()
+        # self.tradePolicy()
+        # print ACCOUNT
         # if tick.symbol == 'mco_btc':
         #     print '========tick============='
         #     print tick.symbol
@@ -479,7 +490,9 @@ class Api(OkCoinApi):
     def __init__(self, gateway):
         """Constructor"""
         super(Api, self).__init__()
-        
+        global ACCOUNT
+        global TRADING
+        global ORDERS
         self.gateway = gateway                  # gateway对象
         self.gatewayName = gateway.gatewayName  # gateway对象名称
         
@@ -506,7 +519,7 @@ class Api(OkCoinApi):
     def onMessage(self, ws, evt):
         """信息推送"""
         data = self.readData(evt)[0]
-        # print data
+        print data
         channel = data['channel']
         callback = self.getCallback(channel)
         callback(data)
@@ -549,10 +562,11 @@ class Api(OkCoinApi):
         self.writeLog(u'服务器连接成功')
         
         # 连接后查询账户和委托数据
-        self.writeLog(u'登陆')
-        self.login()
-        self.writeLog(u'查询账户信息')
-        self.spotUserInfo()
+        if self.gateway.coins == 'symbol':
+            self.writeLog(u'登陆')
+            self.login()
+            self.writeLog(u'查询账户信息')
+            self.spotUserInfo()
         #
         # self.spotOrderInfo(vnokcoin.TRADING_SYMBOL_LTC, '-1')
         # self.spotOrderInfo(vnokcoin.TRADING_SYMBOL_BTC, '-1')
@@ -566,11 +580,12 @@ class Api(OkCoinApi):
         # self.subscribeSpotTicker(vnokcoin.SYMBOL_LTC)
         # self.subscribeSpotTicker(vnokcoin.SYMBOL_ETH)
         a = ['bch']
-        bs = self.gateway.coins + '_btc'
-        es = self.gateway.coins + '_eth'
-        self.subscribeSpotDepth(bs, '5')
-        self.subscribeSpotDepth(es, '5')
-        self.subscribeSpotDepth('eth_btc', '5')
+        if self.gateway.coins != 'symbol':
+            bs = self.gateway.coins + '_btc'
+            es = self.gateway.coins + '_eth'
+            self.subscribeSpotDepth(bs, '5')
+            self.subscribeSpotDepth(es, '5')
+            self.subscribeSpotDepth('eth_btc', '5')
         # self.subscribeSpotDepth('cmt_btc', '5')
         # self.subscribeSpotDepth('ltc_btc', '5')
         # self.subscribeSpotDepth(vnokcoin.SYMBOL_LTC, vnokcoin.DEPTH_20)
@@ -700,8 +715,8 @@ class Api(OkCoinApi):
         info = rawData['info']
         funds = rawData['info']['funds']
         for coin in funds['freezed']:
-            self.account['freezed'][coin] = float(funds['freezed'][coin])
-            self.account['free'][coin] = float(funds['free'][coin])
+            ACCOUNT['freezed'][coin] = float(funds['freezed'][coin])
+            ACCOUNT['free'][coin] = float(funds['free'][coin])
         # print self.account
         # # 持仓信息
         # for symbol in ['btc', 'ltc','eth', self.currency]:
@@ -735,8 +750,8 @@ class Api(OkCoinApi):
         funds = rawData['info']
         self.writeLog(funds)
         for coin in funds['free']:
-            self.account['freezed'][coin] = float(funds['freezed'][coin])
-            self.account['free'][coin] = float(funds['free'][coin])
+            ACCOUNT['freezed'][coin] = float(funds['freezed'][coin])
+            ACCOUNT['free'][coin] = float(funds['free'][coin])
         # 持仓信息
         # for symbol in funds['free']:
         #     pos = VtPositionData()
@@ -772,7 +787,7 @@ class Api(OkCoinApi):
         orderId = str(rawData['orderId'])
 
         # 委托信息
-        if orderId not in self.orderDict.keys():
+        if orderId not in ORDERS.keys():
             order = VtOrderData()
             order.gatewayName = self.gatewayName
             order.symbol = rawData['symbol']
@@ -782,15 +797,15 @@ class Api(OkCoinApi):
             order.price = float(rawData['tradeUnitPrice'])
             order.totalVolume = float(rawData['tradeAmount'])
             order.direction = rawData['tradeType']
-            self.orderDict[orderId] = order
+            ORDERS[orderId] = order
         else:
-            order = self.orderDict[orderId]
+            order = ORDERS[orderId]
 
         order.tradedVolume = float(rawData['completedTradeAmount'])
         order.status = rawData['status']
-        self.orderDict[orderId] = order
+        ORDERS[orderId] = order
         if str(order.status) == '2':
-            self.orderDict.pop(order.orderID)
+            ORDERS.pop(order.orderID)
         self.gateway.onOrder(copy(order))
 
         # 成交信息
