@@ -5,7 +5,7 @@ import sys
 import threading
 from okcoinGateway import *
 
-SYMBOL = ['ace', 'act', 'amm', 'ark', 'ast', 'avt', 'bnt', 'btm', 'cmt', 'ctr',
+SYMBOL = ['symbol', 'ace', 'act', 'amm', 'ark', 'ast', 'avt', 'bnt', 'btm', 'cmt', 'ctr',
           'cvc', 'dash', 'dat', 'dgb', 'dgd', 'dnt', 'dpy', 'edo', 'elf', 'eng',
           'eos', 'etc', 'evx', 'fun', 'gas', 'gnt', 'gnx', 'hsr', 'icn', 'icx',
           'iota', 'itc', 'kcash', 'knc', 'link', 'lrc', 'ltc', 'mana', 'mco',
@@ -30,7 +30,7 @@ def test():
     app = QtCore.QCoreApplication(sys.argv)
     c = ['mco', 'eos']
     threads = []
-    for ss in SYMBOL:
+    for ss in SYMBOL[:2]:
         s = ss
         threads.append(threading.Thread(target=pp, args=(s,)))
         # print(time())
