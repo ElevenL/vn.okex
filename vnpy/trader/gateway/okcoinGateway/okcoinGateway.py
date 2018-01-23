@@ -451,6 +451,7 @@ class OkcoinGateway(VtGateway):
                 tradeList.append(symbols[2])
             if TRADING and len(tradeList) >= 3 and len(ORDERS) == 0:
                 self.api.writeLog('[End Policy]succssed complete all trade!')
+                TRADING = False
                 return
             sleep(0.2)
         orders = deepcopy(ORDERS)
@@ -474,6 +475,7 @@ class OkcoinGateway(VtGateway):
         req.volume = ACCOUNT['free']['eth']
         self.sendOrder(req)
         self.api.writeLog('[End Policy]Failed complete all trade!')
+        TRADING= False
 
     # ----------------------------------------------------------------------
     def registeHandle(self):
