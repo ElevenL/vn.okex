@@ -316,12 +316,12 @@ class OkcoinGateway(VtGateway):
         for s in symbols:
             if s not in depth.keys():
                 return depth, 0, 0
-        profit = (float(depth[symbols[1]].bidPrice3) * float(depth[symbols[2]].bidPrice1)) / \
+        profit = (float(depth[symbols[1]].bidPrice2) * float(depth[symbols[2]].bidPrice1)) / \
                 float(depth[symbols[0]].askPrice1)
         if profit > 1.02:   #设置最小盈利空间为1.5%
             amount = []
             amount.append(float(depth[symbols[0]].askPrice1) * min(float(depth[symbols[0]].askVolume1),
-                                                                     float(depth[symbols[1]].bidVolume1) + float(depth[symbols[1]].bidVolume2) + float(depth[symbols[1]].bidVolume3)))
+                                                                     float(depth[symbols[1]].bidVolume1) + float(depth[symbols[1]].bidVolume2)))
             amount.append(float(depth[symbols[2]].bidPrice1) * float(depth[symbols[2]].bidVolume1))
             amount.sort()
             return depth, profit, amount[0]
@@ -344,7 +344,7 @@ class OkcoinGateway(VtGateway):
             print 'profit:', tradeSymbol['profit']
             print 'amount:', tradeSymbol['amount']
             print 'depth1:', depth[tradeSymbol['symbol'][0]].askPrice1, depth[tradeSymbol['symbol'][0]].askVolume1
-            print 'depth2:', depth[tradeSymbol['symbol'][1]].bidPrice1, depth[tradeSymbol['symbol'][1]].bidVolume1
+            print 'depth2:', depth[tradeSymbol['symbol'][1]].bidPrice2, depth[tradeSymbol['symbol'][1]].bidVolume2
             print 'depth3:', depth[tradeSymbol['symbol'][2]].bidPrice1, depth[tradeSymbol['symbol'][2]].bidVolume1
 
             if ACCOUNT['free']['btc'] <= tradeSymbol['amount']:
@@ -357,7 +357,7 @@ class OkcoinGateway(VtGateway):
             amountDict[tradeSymbol['symbol'][0]] = round(initAmount * 0.998 / float(depth[tradeSymbol['symbol'][0]].askPrice1), 8)
             amountDict[tradeSymbol['symbol'][1]] = round(amountDict[tradeSymbol['symbol'][0]] * 0.99898, 8)
             amountDict[tradeSymbol['symbol'][2]] = round(((amountDict[tradeSymbol['symbol'][1]]*\
-                                                            float(depth[tradeSymbol['symbol'][1]].bidPrice3) * 0.9989)), 8)
+                                                            float(depth[tradeSymbol['symbol'][1]].bidPrice2) * 0.9989)), 8)
             return depth, tradeSymbol['symbol'], amountDict
         else:
             return depth, [], {}
@@ -441,7 +441,7 @@ class OkcoinGateway(VtGateway):
                 req = VtOrderReq()
                 req.symbol = symbols[1]
                 req.priceType = 'sell'
-                req.price = depth[symbols[1]].bidPrice3
+                req.price = depth[symbols[1]].bidPrice2
                 req.volume = amount[symbols[1]]
                 self.sendOrder(req)
                 tradeList.append(symbols[1])
