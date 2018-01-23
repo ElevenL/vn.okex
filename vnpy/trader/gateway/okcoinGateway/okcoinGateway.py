@@ -946,7 +946,9 @@ class Api(OkCoinApi):
         rawData = data['data']
         if 'order_id' not in rawData:
             self.writeLog('[order]error_code:%s' % str(rawData['error_code']))
-        orderId = rawData['order_id']
+        else:
+            orderId = rawData['order_id']
+            self.writeLog(rawData)
         # print orderId
         # 尽管websocket接口的委托号返回是异步的，但经过测试是
         # 符合先发现回的规律，因此这里通过queue获取之前发送的
