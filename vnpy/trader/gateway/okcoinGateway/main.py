@@ -30,7 +30,7 @@ def test():
     app = QtCore.QCoreApplication(sys.argv)
     c = ['mco', 'eos']
     threads = []
-    for ss in SYMBOL[:2]:
+    for ss in SYMBOL:
         s = ss
         threads.append(threading.Thread(target=pp, args=(s,)))
         # print(time())
