@@ -249,13 +249,13 @@ class OkcoinGateway(VtGateway):
         tick = event.dict_['data']
         self.tradePolicy()
         # print ACCOUNT
-        if tick.symbol == 'mco_btc':
-            print '========tick============='
-            print tick.symbol
-            print tick.askPrice1
-            print tick.askVolume1
-            print tick.bidPrice1
-            print tick.bidVolume1
+        # if tick.symbol == 'mco_btc':
+        #     print '========tick============='
+        #     print tick.symbol
+        #     print tick.askPrice1
+        #     print tick.askVolume1
+        #     print tick.bidPrice1
+        #     print tick.bidVolume1
         # if self.tradeTest:
         #     req = VtOrderReq()
         #     req.symbol = tick.symbol
