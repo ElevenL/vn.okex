@@ -792,8 +792,7 @@ class Api(OkCoinApi):
         if 'data' not in data:
             return
         rawData = data['data']
-        if rawData['symbol'] in self.gateway.tradeSymbols:
-            self.writeLog(rawData)
+        self.writeLog(rawData)
         # 本地和系统委托号
         orderId = str(rawData['orderId'])
 
