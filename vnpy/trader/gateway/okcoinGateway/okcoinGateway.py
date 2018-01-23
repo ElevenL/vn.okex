@@ -454,28 +454,29 @@ class OkcoinGateway(VtGateway):
                 TRADING = False
                 return
             sleep(0.2)
-        orders = deepcopy(ORDERS)
-        for id in orders.keys():
-            req = VtCancelOrderReq
-            req.symbol = orders[id].symbol
-            req.orderID = orders[id].orderID
-            self.cancelOrder(req)
-            ORDERS.pop(id)
-        sleep(0.5)
-        req = VtOrderReq()
-        req.symbol = symbols[0]
-        req.priceType = 'sell_market'
-        req.price = ''
-        req.volume = round(ACCOUNT['free'][symbols[0].split('_')[0]] * 0.9999, 8)
-        self.sendOrder(req)
-        req = VtOrderReq()
-        req.symbol = symbols[2]
-        req.priceType = 'sell_market'
-        req.price = ''
-        req.volume = ACCOUNT['free']['eth']
-        self.sendOrder(req)
-        self.api.writeLog('[End Policy]Failed complete all trade!')
-        TRADING= False
+        if TRADING:
+            orders = deepcopy(ORDERS)
+            for id in orders.keys():
+                req = VtCancelOrderReq
+                req.symbol = orders[id].symbol
+                req.orderID = orders[id].orderID
+                self.cancelOrder(req)
+                ORDERS.pop(id)
+            sleep(0.5)
+            req = VtOrderReq()
+            req.symbol = symbols[0]
+            req.priceType = 'sell_market'
+            req.price = ''
+            req.volume = round(ACCOUNT['free'][symbols[0].split('_')[0]] * 0.9999, 8)
+            self.sendOrder(req)
+            req = VtOrderReq()
+            req.symbol = symbols[2]
+            req.priceType = 'sell_market'
+            req.price = ''
+            req.volume = ACCOUNT['free']['eth']
+            self.sendOrder(req)
+            self.api.writeLog('[End Policy]Failed complete all trade!')
+            TRADING= False
 
     # ----------------------------------------------------------------------
     def registeHandle(self):
