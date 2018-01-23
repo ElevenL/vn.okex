@@ -331,6 +331,7 @@ class OkcoinGateway(VtGateway):
     # ----------------------------------------------------------------------
     def getAmount(self):
         '''获取盈利最大的合约组合，并计算每个合约的交易量'''
+        global ACCOUNT
         depth, profit, amount = self.prepare(self.tradeSymbols)
         if amount > 0.002:     #设置最小btc交易量为0.002
             tradeSymbol = {}
@@ -412,6 +413,7 @@ class OkcoinGateway(VtGateway):
 
     # ----------------------------------------------------------------------
     def tradePolicy(self):
+        global TRADING,ACCOUNT,ORDERS
         tradeList = []
         depth, symbols, amount = self.getAmount()
         if symbols == []:
@@ -714,6 +716,7 @@ class Api(OkCoinApi):
     #----------------------------------------------------------------------
     def onSpotUserInfo(self, data):
         """现货账户资金推送"""
+        global ACCOUNT
         rawData = data['data']
         # print rawData
         info = rawData['info']
@@ -750,6 +753,7 @@ class Api(OkCoinApi):
 
     def onSpotSubUserInfo(self, data):
         """现货账户资金推送"""
+        global ACCOUNT
         rawData = data['data']
         funds = rawData['info']
         self.writeLog(funds)
@@ -782,6 +786,7 @@ class Api(OkCoinApi):
 
     def onSpotSubTrades(self, data):
         """成交和委托推送"""
+        global ORDERS
         if 'data' not in data:
             return
         rawData = data['data']
