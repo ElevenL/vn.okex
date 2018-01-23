@@ -311,8 +311,8 @@ class OkcoinGateway(VtGateway):
         '''获取盈利空间和转换后的btc交易量'''
         # print 'in prepare'
         # print self.api.depth
-        # depth = deepcopy(self.api.depth)
-        depth = self.api.depth
+        depth = deepcopy(self.api.depth)
+        # depth = self.api.depth
         for s in symbols:
             if s not in depth.keys():
                 return depth, 0, 0
