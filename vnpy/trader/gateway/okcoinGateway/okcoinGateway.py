@@ -343,9 +343,9 @@ class OkcoinGateway(VtGateway):
             self.api.writeLog('symbol: %s'% tradeSymbol['symbol'])
             print 'profit:', tradeSymbol['profit']
             print 'amount:', tradeSymbol['amount']
-            print 'depth1:', depth[tradeSymbol['symbol'][0]].askPrice1, depth[tradeSymbol['symbol'][0]].askVolume1
-            print 'depth2:', depth[tradeSymbol['symbol'][1]].bidPrice1, depth[tradeSymbol['symbol'][1]].bidVolume1
-            print 'depth3:', depth[tradeSymbol['symbol'][2]].bidPrice1, depth[tradeSymbol['symbol'][2]].bidVolume1
+            print 'depth1:', depth[tradeSymbol['symbol'][0]].askPrice1, depth[tradeSymbol['symbol'][0]].askPrice2, depth[tradeSymbol['symbol'][0]].askVolume1
+            print 'depth2:', depth[tradeSymbol['symbol'][1]].bidPrice1, depth[tradeSymbol['symbol'][1]].bidPrice2, depth[tradeSymbol['symbol'][1]].bidVolume1
+            print 'depth3:', depth[tradeSymbol['symbol'][2]].bidPrice1, depth[tradeSymbol['symbol'][2]].bidPrice2, depth[tradeSymbol['symbol'][2]].bidVolume1
 
             if ACCOUNT['free']['btc'] <= tradeSymbol['amount']:
                 initAmount = ACCOUNT['free']['btc']
