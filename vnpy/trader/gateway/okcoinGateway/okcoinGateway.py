@@ -423,7 +423,7 @@ class OkcoinGateway(VtGateway):
         self.api.writeLog('[Start Polocy]')
         # if True:
         #     return
-        for i in range(75):
+        for i in range(100):
             if symbols[0] not in tradeList and not TRADING and ACCOUNT['free']['btc'] >= amount[symbols[0]] * float(depth[symbols[0]].askPrice1):
                 # print 'step1'
                 req = VtOrderReq()
@@ -457,8 +457,9 @@ class OkcoinGateway(VtGateway):
                 self.api.writeLog('[End Policy]succssed complete all trade!')
                 TRADING = False
                 return
-            sleep(0.2)
+            sleep(0.1)
         if TRADING:
+            # print '11111',ORDERS
             orders = deepcopy(ORDERS)
             for id in orders.keys():
                 req = VtCancelOrderReq
@@ -466,7 +467,10 @@ class OkcoinGateway(VtGateway):
                 req.orderID = orders[id].orderID
                 self.cancelOrder(req)
                 ORDERS.pop(id)
+                sleep(1)
             sleep(1)
+            # print '22222',ORDERS
+            # print '33333',ACCOUNT
             req = VtOrderReq()
             req.symbol = symbols[0]
             req.priceType = 'sell_market'
@@ -548,14 +552,14 @@ class Api(OkCoinApi):
             return
         
         self.gateway.connected = False
-        self.writeLog(u'服务器连接断开')
+        # self.writeLog(u'服务器连接断开')
         
         # 重新连接
         if self.active:
             
             def reconnect():
                 while not self.gateway.connected:            
-                    self.writeLog(u'等待10秒后重新连接')
+                    # self.writeLog(u'等待10秒后重新连接')
                     sleep(5)
                     if not self.gateway.connected:
                         self.reconnect()
@@ -567,7 +571,7 @@ class Api(OkCoinApi):
     def onOpen(self, ws):       
         """连接成功"""
         self.gateway.connected = True
-        self.writeLog(u'服务器连接成功')
+        # self.writeLog(u'服务器连接成功')
         
         # 连接后查询账户和委托数据
         if self.gateway.coins == 'symbol':
@@ -968,6 +972,8 @@ class Api(OkCoinApi):
     #----------------------------------------------------------------------
     def onSpotCancelOrder(self, data):
         """撤单回报"""
+        rawData = data['data']
+        print '[onCancelOrder]',rawData
         pass
     
     #----------------------------------------------------------------------
