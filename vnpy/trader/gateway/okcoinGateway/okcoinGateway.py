@@ -354,6 +354,8 @@ class OkcoinGateway(VtGateway):
                 initAmount = tradeSymbol['amount']
             if initAmount < 0.002:
                 return depth, [], {}
+            else:
+                initAmount = 0.002
             amountDict = {}
             amountDict[tradeSymbol['symbol'][0]] = round(initAmount * 0.998 / float(depth[tradeSymbol['symbol'][0]].askPrice1), 8)
             amountDict[tradeSymbol['symbol'][1]] = round(amountDict[tradeSymbol['symbol'][0]] * 0.99898, 8)
