@@ -247,7 +247,8 @@ class OkcoinGateway(VtGateway):
     # ----------------------------------------------------------------------
     def pTick(self, event):
         tick = event.dict_['data']
-        self.tradePolicy()
+        if TRADING == False:
+            self.tradePolicy()
         # print ACCOUNT
         # if tick.symbol == 'mco_btc':
         #     print '========tick============='
@@ -420,11 +421,15 @@ class OkcoinGateway(VtGateway):
         depth, symbols, amount = self.getAmount()
         if symbols == []:
             return False
+        if TRADING:
+            return False
+        else:
+            TRADING = True
         self.api.writeLog('[Start Polocy]')
         # if True:
         #     return
         for i in range(100):
-            if symbols[0] not in tradeList and not TRADING and ACCOUNT['free']['btc'] >= amount[symbols[0]] * float(depth[symbols[0]].askPrice1):
+            if symbols[0] not in tradeList and ACCOUNT['free']['btc'] >= amount[symbols[0]] * float(depth[symbols[0]].askPrice1):
                 # print 'step1'
                 req = VtOrderReq()
                 req.symbol = symbols[0]
@@ -435,9 +440,8 @@ class OkcoinGateway(VtGateway):
                 req.volume = amount[symbols[0]]
                 # print 'step4'
                 self.sendOrder(req)
-                TRADING = True
                 tradeList.append(symbols[0])
-            if symbols[1] not in tradeList and TRADING and ACCOUNT['free'][symbols[1].split('_')[0]] >= amount[symbols[1]]:
+            if symbols[1] not in tradeList and ACCOUNT['free'][symbols[1].split('_')[0]] >= amount[symbols[1]]:
                 req = VtOrderReq()
                 req.symbol = symbols[1]
                 req.priceType = 'sell'
@@ -445,7 +449,7 @@ class OkcoinGateway(VtGateway):
                 req.volume = amount[symbols[1]]
                 self.sendOrder(req)
                 tradeList.append(symbols[1])
-            if symbols[2] not in tradeList and TRADING and ACCOUNT['free']['eth'] >= amount[symbols[2]]:
+            if symbols[2] not in tradeList and ACCOUNT['free']['eth'] >= amount[symbols[2]]:
                 req = VtOrderReq()
                 req.symbol = symbols[2]
                 req.priceType = 'sell'
@@ -468,21 +472,20 @@ class OkcoinGateway(VtGateway):
                 self.cancelOrder(req)
                 ORDERS.pop(id)
                 sleep(1)
-            sleep(1)
             # print '22222',ORDERS
             # print '33333',ACCOUNT
-            req = VtOrderReq()
-            req.symbol = symbols[0]
-            req.priceType = 'sell_market'
-            req.price = ''
-            req.volume = round(ACCOUNT['free'][symbols[0].split('_')[0]] * 0.9999, 8)
-            self.sendOrder(req)
-            req = VtOrderReq()
-            req.symbol = symbols[2]
-            req.priceType = 'sell_market'
-            req.price = ''
-            req.volume = ACCOUNT['free']['eth']
-            self.sendOrder(req)
+            # req = VtOrderReq()
+            # req.symbol = symbols[0]
+            # req.priceType = 'sell_market'
+            # req.price = ''
+            # req.volume = round(ACCOUNT['free'][symbols[0].split('_')[0]] * 0.9999, 8)
+            # self.sendOrder(req)
+            # req = VtOrderReq()
+            # req.symbol = symbols[2]
+            # req.priceType = 'sell_market'
+            # req.price = ''
+            # req.volume = ACCOUNT['free']['eth']
+            # self.sendOrder(req)
             self.api.writeLog('[End Policy]Failed complete all trade!')
             TRADING= False
 
@@ -819,6 +822,7 @@ class Api(OkCoinApi):
         order.status = rawData['status']
         ORDERS[orderId] = order
         if str(order.status) == '2':
+            self.spotUserInfo()
             ORDERS.pop(order.orderID)
         self.gateway.onOrder(copy(order))
 
