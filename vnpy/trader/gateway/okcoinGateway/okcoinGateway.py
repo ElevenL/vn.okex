@@ -32,6 +32,7 @@ ACCOUNT['free'] = {}
 ACCOUNT['freezed'] = {}
 TRADING = False
 ORDERS = {}
+DEPTH = {}
 
 
 
@@ -100,7 +101,7 @@ class OkcoinGateway(VtGateway):
         self.tradeSymbols = []
         self.tradeTest = True
 
-        self.coin2tradeSymbols()
+        self.coin2tradeSymbols(self.coins)
 
     #----------------------------------------------------------------------
     def connect(self):
@@ -150,15 +151,19 @@ class OkcoinGateway(VtGateway):
         self.initQuery()
         self.startQuery()
 
-    #----------------------------------------------------------------------
-    def coin2tradeSymbols(self):
+    # ----------------------------------------------------------------------
+    def coin2tradeSymbols(self, coins):
         """币种转换成合约代码"""
-        c = ['btc', self.coins, 'eth']
-
-        self.tradeSymbols = ['_'.join((c[1], c[0])),
-            '_'.join((c[1], c[2])),
-            'eth_btc']
-
+        coinList = []
+        for k in permutations(coins, 2):
+            tmp = ['btc', k[0], 'eth', k[1]]
+            coinList.append(tmp)
+        for c in coinList:
+            s = ['_'.join((c[1], c[0])),
+                    '_'.join((c[1], c[2])),
+                    '_'.join((c[3], c[2])),
+                    '_'.join((c[3], c[0]))]
+            self.tradeSymbols.append(s)
 
 
     #----------------------------------------------------------------------
@@ -311,19 +316,18 @@ class OkcoinGateway(VtGateway):
     def prepare(self, symbols):
         '''获取盈利空间和转换后的btc交易量'''
         # print 'in prepare'
-        # print self.api.depth
-        depth = deepcopy(self.api.depth)
-        # depth = self.api.depth
+        depth = deepcopy(DEPTH)
         for s in symbols:
             if s not in depth.keys():
                 return depth, 0, 0
-        profit = (float(depth[symbols[1]].bidPrice1) * float(depth[symbols[2]].bidPrice1)) / \
-                float(depth[symbols[0]].askPrice1)
+        profit = (float(depth[symbols[1]].bidPrice1) * float(depth[symbols[3]].bidPrice1)) / \
+                 (float(depth[symbols[0]].askPrice1) * float(depth[symbols[2]].askPrice1))
         if profit > 1.02:   #设置最小盈利空间为1.5%
             amount = []
             amount.append(float(depth[symbols[0]].askPrice1) * min(float(depth[symbols[0]].askVolume1),
                                                                      float(depth[symbols[1]].bidVolume1)))
-            amount.append(float(depth[symbols[2]].bidPrice1) * float(depth[symbols[2]].bidVolume1))
+            amount.append(float(depth[symbols[3]].bidPrice1) * min(float(depth[symbols[2]].askPrice1),
+                                                                   float(depth[symbols[3]].bidVolume1)))
             amount.sort()
             return depth, profit, amount[0]
         else:
@@ -598,10 +602,11 @@ class Api(OkCoinApi):
         # self.subscribeSpotTicker(vnokcoin.SYMBOL_ETH)
         a = ['bch']
         if self.gateway.coins != 'symbol':
-            bs = self.gateway.coins + '_btc'
-            es = self.gateway.coins + '_eth'
-            self.subscribeSpotDepth(bs, '5')
-            self.subscribeSpotDepth(es, '5')
+            for c in self.gateway.coins:
+                bs = c + '_btc'
+                es = c + '_eth'
+                self.subscribeSpotDepth(bs, '5')
+                self.subscribeSpotDepth(es, '5')
             self.subscribeSpotDepth('eth_btc', '5')
         # self.subscribeSpotDepth('cmt_btc', '5')
         # self.subscribeSpotDepth('ltc_btc', '5')
@@ -698,9 +703,7 @@ class Api(OkCoinApi):
             self.tickDict[symbol] = tick
         else:
             tick = self.tickDict[symbol]
-        
-        if 'data' not in data:
-            return
+
         rawData = data['data']
 
         tick.bidPrice1, tick.bidVolume1 = rawData['bids'][0]
@@ -715,14 +718,12 @@ class Api(OkCoinApi):
         tick.askPrice4, tick.askVolume4 = rawData['asks'][-4]
         tick.askPrice5, tick.askVolume5 = rawData['asks'][-5]     
         
-        tick.date, tick.time = generateDateTime(rawData['timestamp'])
+        # tick.date, tick.time = generateDateTime(rawData['timestamp'])
         newtick = copy(tick)
         # self.tickCount += 1
-        self.depth[symbol] = newtick
+        DEPTH[symbol] = newtick
         # print self.tickCount
-        # print self.depth
-        # print self.depth
-        self.gateway.onTick(newtick)
+        # self.gateway.onTick(newtick)
     
     #----------------------------------------------------------------------
     def onSpotUserInfo(self, data):
@@ -730,7 +731,6 @@ class Api(OkCoinApi):
         global ACCOUNT
         rawData = data['data']
         # print rawData
-        info = rawData['info']
         funds = rawData['info']['funds']
         for coin in funds['freezed']:
             ACCOUNT['freezed'][coin] = float(funds['freezed'][coin])
@@ -753,20 +753,19 @@ class Api(OkCoinApi):
         #         self.gateway.onPosition(pos)
 
         # 账户资金
-        account = VtAccountData()
-        account.gatewayName = self.gatewayName
-        account.accountID = self.gatewayName
-        account.vtAccountID = account.accountID
-        account.balance = float(funds['free']['btc'])
-        self.gateway.onAccount(account)    
+        # account = VtAccountData()
+        # account.gatewayName = self.gatewayName
+        # account.accountID = self.gatewayName
+        # account.vtAccountID = account.accountID
+        # account.balance = float(funds['free']['btc'])
+        # self.gateway.onAccount(account)
         
     #----------------------------------------------------------------------
 
     def onSpotSubUserInfo(self, data):
         """现货账户资金推送"""
         global ACCOUNT
-        rawData = data['data']
-        funds = rawData['info']
+        funds = data['data']['info']
         self.writeLog(funds)
         for coin in funds['free']:
             ACCOUNT['freezed'][coin] = float(funds['freezed'][coin])
@@ -801,7 +800,6 @@ class Api(OkCoinApi):
         if 'data' not in data:
             return
         rawData = data['data']
-        self.writeLog(rawData)
         # 本地和系统委托号
         orderId = str(rawData['orderId'])
 
@@ -826,7 +824,7 @@ class Api(OkCoinApi):
         if str(order.status) == '2':
             self.spotUserInfo()
             ORDERS.pop(order.orderID)
-        self.gateway.onOrder(copy(order))
+        self.writeLog(rawData)
 
         # 成交信息
         # if 'sigTradeAmount' in rawData and float(rawData['sigTradeAmount'])>0:
@@ -858,12 +856,7 @@ class Api(OkCoinApi):
         rawData = data['data']
         
         for d in rawData['orders']:
-            self.localNo += 1
-            localNo = str(self.localNo)
             orderId = str(d['order_id'])
-            
-            self.localNoDict[localNo] = orderId
-            self.orderIdDict[orderId] = localNo
             
             if orderId not in self.orderDict:
                 order = VtOrderData()
@@ -872,7 +865,7 @@ class Api(OkCoinApi):
                 order.symbol = d['symbol']
                 order.vtSymbol = order.symbol
     
-                order.orderID = localNo
+                order.orderID = orderId
                 order.vtOrderID = '.'.join([self.gatewayName, order.orderID])
                 
                 order.price = d['price']
@@ -885,12 +878,10 @@ class Api(OkCoinApi):
                 
             order.tradedVolume = d['deal_amount']
             order.status = d['status']
-            self.orderDict[orderId] = order
-            # print '==========order============'
-            # print order.symbol
-            # print order.orderId
-            # print order.status
-            self.gateway.onOrder(copy(order))
+            ORDERS[orderId] = order
+            if str(order.status) == '2':
+                self.spotUserInfo()
+                ORDERS.pop(order.orderID)
     
     #----------------------------------------------------------------------
     def generateSpecificContract(self, contract, symbol):
@@ -1007,3 +998,65 @@ def generateDateTime(s):
     time = dt.strftime("%H:%M:%S.%f")
     date = dt.strftime("%Y%m%d")
     return date, time
+
+# ----------------------------------------------------------------------
+def coin2tradeSymbols(coins):
+    """币种转换成合约代码"""
+    tradeSymbols = []
+    coinList = []
+    for k in permutations(coins, 2):
+        tmp = ['btc', k[0], 'eth', k[1]]
+        coinList.append(tmp)
+    for c in coinList:
+        s = ['_'.join((c[1], c[0])),
+                '_'.join((c[1], c[2])),
+                '_'.join((c[3], c[2])),
+                '_'.join((c[3], c[0]))]
+        tradeSymbols.append(s)
+    return tradeSymbols
+
+# ----------------------------------------------------------------------
+def prepare(symbols):
+    '''获取盈利空间和转换后的btc交易量'''
+    # print 'in prepare'
+    global DEPTH
+    depth = deepcopy(DEPTH)
+    for s in symbols:
+        if s not in depth.keys():
+            return depth, 0, 0
+    profit = (float(depth[symbols[1]].bidPrice1) * float(depth[symbols[3]].bidPrice1)) / \
+                (float(depth[symbols[0]].askPrice1) * float(depth[symbols[2]].askPrice1))
+    if profit > 1.015:   #设置最小盈利空间为1.5%
+        amount = []
+        amount.append(float(depth[symbols[0]].askPrice1) * min(float(depth[symbols[0]].askVolume1),
+                                                                float(depth[symbols[1]].bidVolume1)))
+        amount.append(float(depth[symbols[3]].bidPrice1) * min(float(depth[symbols[2]].askPrice1),
+                                                                float(depth[symbols[3]].bidVolume1)))
+        amount.sort()
+        return depth, profit, amount[0]
+    else:
+        return depth, 0, 0
+
+# ----------------------------------------------------------------------
+def policy(symbols):
+    while True:
+        print time.time()
+        for s in symbols:
+            depth,profit,amount = prepare(s)
+            if profit == 0:
+                continue
+            if amount > 0.001:     #设置最小btc交易量为0.001
+                tradeSymbol = {}
+                tradeSymbol['symbol'] = s
+                tradeSymbol['profit'] = profit
+                tradeSymbol['amount'] = amount
+                tradeSymbol['total'] = profit * amount
+                print '=======in getAmount======='
+                print 'symbol: %s'% tradeSymbol['symbol']
+                print 'profit:', tradeSymbol['profit']
+                print 'amount:', tradeSymbol['amount']
+                print 'depth1:', depth[tradeSymbol['symbol'][0]].askPrice1, depth[tradeSymbol['symbol'][0]].askPrice2, depth[tradeSymbol['symbol'][0]].askVolume1
+                print 'depth2:', depth[tradeSymbol['symbol'][1]].bidPrice1, depth[tradeSymbol['symbol'][1]].bidPrice2, depth[tradeSymbol['symbol'][1]].bidVolume1
+                print 'depth3:', depth[tradeSymbol['symbol'][2]].askPrice1, depth[tradeSymbol['symbol'][2]].askPrice2, depth[tradeSymbol['symbol'][2]].askVolume1
+                print 'depth4:', depth[tradeSymbol['symbol'][3]].bidPrice1, depth[tradeSymbol['symbol'][3]].bidPrice2, depth[tradeSymbol['symbol'][3]].bidVolume1
+        print time.time()
