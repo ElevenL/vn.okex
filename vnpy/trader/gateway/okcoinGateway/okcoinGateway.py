@@ -155,9 +155,11 @@ class OkcoinGateway(VtGateway):
         """币种转换成合约代码"""
         c = ['btc', self.coins, 'eth']
 
-        self.tradeSymbols = ['_'.join((c[1], c[0])),
-            '_'.join((c[1], c[2])),
-            'eth_btc']
+        a = ['_'.join((c[1], c[0])), '_'.join((c[1], c[2])), 'eth_btc']
+        b = ['_'.join((c[1], c[2])), '_'.join((c[1], c[0])), 'eth_btc']
+
+        self.tradeSymbols.append(a)
+        self.tradeSymbols.append(b)
 
 
 
@@ -317,26 +319,26 @@ class OkcoinGateway(VtGateway):
         for s in symbols:
             if s not in depth.keys():
                 return depth, 0, 0
-        profit = (float(depth[symbols[1]].bidPrice1) * float(depth[symbols[2]].bidPrice1)) / \
-                float(depth[symbols[0]].askPrice1)
+        if '_btc' in symbols[0]:
+            profit = (float(depth[symbols[1]].bidPrice1) * float(depth[symbols[2]].bidPrice1)) / \
+                    float(depth[symbols[0]].askPrice1)
+        else:
+            profit = float(depth[symbols[1]].bidPrice1) / (float(depth[symbols[2]].askPrice1) * \
+                     float(depth[symbols[0]].askPrice1))
         if profit > 1.02:   #设置最小盈利空间为1.5%
-            amount = []
-            amount.append(float(depth[symbols[0]].askPrice1) * min(float(depth[symbols[0]].askVolume1),
-                                                                     float(depth[symbols[1]].bidVolume1)))
-            amount.append(float(depth[symbols[2]].bidPrice1) * float(depth[symbols[2]].bidVolume1))
-            amount.sort()
-            return depth, profit, amount[0]
+            amount = min(float(depth[symbols[0]].askVolume1), float(depth[symbols[1]].bidVolume1)) * float(depth[symbols[0]].askPrice1)
+            return depth, profit, amount
         else:
             return depth, 0, 0
 
     # ----------------------------------------------------------------------
-    def getAmount(self):
+    def getAmount(self, tradeSymbols):
         '''获取盈利最大的合约组合，并计算每个合约的交易量'''
         global ACCOUNT
-        depth, profit, amount = self.prepare(self.tradeSymbols)
-        if amount > 0.002:     #设置最小btc交易量为0.002
+        depth, profit, amount = self.prepare(tradeSymbols)
+        if amount > 0.001:     #设置最小btc交易量为0.002
             tradeSymbol = {}
-            tradeSymbol['symbol'] = self.tradeSymbols
+            tradeSymbol['symbol'] = tradeSymbols
             tradeSymbol['profit'] = profit
             tradeSymbol['amount'] = amount
             tradeSymbol['total'] = profit * amount
@@ -348,11 +350,17 @@ class OkcoinGateway(VtGateway):
             print 'depth2:', depth[tradeSymbol['symbol'][1]].bidPrice1, depth[tradeSymbol['symbol'][1]].bidPrice2, depth[tradeSymbol['symbol'][1]].bidVolume1
             print 'depth3:', depth[tradeSymbol['symbol'][2]].bidPrice1, depth[tradeSymbol['symbol'][2]].bidPrice2, depth[tradeSymbol['symbol'][2]].bidVolume1
 
-            if ACCOUNT['free']['btc'] <= tradeSymbol['amount']:
-                initAmount = ACCOUNT['free']['btc']
+            if '_btc' in tradeSymbol['symbol'][0]:
+                if ACCOUNT['free']['btc'] <= tradeSymbol['amount']:
+                    initAmount = ACCOUNT['free']['btc']
+                else:
+                    initAmount = tradeSymbol['amount']
             else:
-                initAmount = tradeSymbol['amount']
-            if initAmount < 0.002:
+                if ACCOUNT['free']['eth'] <= tradeSymbol['amount']:
+                    initAmount = ACCOUNT['free']['btc']
+                else:
+                    initAmount = tradeSymbol['amount']
+            if initAmount < 0.001:
                 return depth, [], {}
             else:
                 initAmount = 0.002
@@ -420,10 +428,11 @@ class OkcoinGateway(VtGateway):
     def tradePolicy(self):
         global TRADING,ACCOUNT,ORDERS
         tradeList = []
-        depth, symbols, amount = self.getAmount()
-        if symbols == []:
-            return False
-        if TRADING:
+        for tradeSymbol in self.tradeSymbols:
+            depth, symbols, amount = self.getAmount(tradeSymbol)
+            if symbols != []:
+                break
+        if symbols == [] or TRADING:
             return False
         else:
             TRADING = True
@@ -431,7 +440,7 @@ class OkcoinGateway(VtGateway):
         # if True:
         #     return
         for i in range(100):
-            if symbols[0] not in tradeList and ACCOUNT['free']['btc'] >= amount[symbols[0]] * float(depth[symbols[0]].askPrice1):
+            if symbols[0] not in tradeList:
                 # print 'step1'
                 req = VtOrderReq()
                 req.symbol = symbols[0]
@@ -451,15 +460,7 @@ class OkcoinGateway(VtGateway):
                 req.volume = amount[symbols[1]]
                 self.sendOrder(req)
                 tradeList.append(symbols[1])
-            if symbols[2] not in tradeList and ACCOUNT['free']['eth'] >= amount[symbols[2]]:
-                req = VtOrderReq()
-                req.symbol = symbols[2]
-                req.priceType = 'sell'
-                req.price = depth[symbols[2]].bidPrice1
-                req.volume = amount[symbols[2]]
-                self.sendOrder(req)
-                tradeList.append(symbols[2])
-            if TRADING and len(tradeList) >= 3 and len(ORDERS) == 0:
+            if TRADING and len(tradeList) >= 2 and len(ORDERS) == 0:
                 self.api.writeLog('[End Policy]succssed complete all trade!')
                 TRADING = False
                 return
@@ -823,7 +824,7 @@ class Api(OkCoinApi):
         order.tradedVolume = float(rawData['completedTradeAmount'])
         order.status = rawData['status']
         ORDERS[orderId] = order
-        if str(order.status) == '2':
+        if str(order.status) == '2' or str(order.status) == '-1':
             self.spotUserInfo()
             ORDERS.pop(order.orderID)
         self.gateway.onOrder(copy(order))
