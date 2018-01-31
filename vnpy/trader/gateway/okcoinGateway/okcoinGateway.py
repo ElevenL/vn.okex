@@ -320,10 +320,10 @@ class OkcoinGateway(VtGateway):
             if s not in depth.keys():
                 return depth, 0, 0
         if '_btc' in symbols[0]:
-            profit = (float(depth[symbols[1]].bidPrice1) * float(depth[symbols[2]].bidPrice1)) / \
+            profit = (float(depth[symbols[1]].bidPrice1) * float(depth[symbols[2]].askPrice1)) / \
                     float(depth[symbols[0]].askPrice1)
         else:
-            profit = float(depth[symbols[1]].bidPrice1) / (float(depth[symbols[2]].askPrice1) * \
+            profit = float(depth[symbols[1]].bidPrice1) / (float(depth[symbols[2]].bidPrice1) * \
                      float(depth[symbols[0]].askPrice1))
         if profit > 1.02:   #设置最小盈利空间为1.5%
             amount = min(float(depth[symbols[0]].askVolume1), float(depth[symbols[1]].bidVolume1)) * float(depth[symbols[0]].askPrice1)
