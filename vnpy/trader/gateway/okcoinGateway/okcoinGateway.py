@@ -436,9 +436,9 @@ class OkcoinGateway(VtGateway):
             return False
         else:
             TRADING = True
+        if True:
+            return
         self.api.writeLog('[Start Polocy]')
-        # if True:
-        #     return
         for i in range(100):
             if symbols[0] not in tradeList:
                 # print 'step1'
