@@ -10,7 +10,7 @@ SYMBOL = ['symbol', 'ace', 'act', 'amm', 'ark', 'ast', 'avt', 'bnt', 'btm', 'cmt
           'eos', 'etc', 'evx', 'fun', 'gas', 'gnt', 'gnx', 'hsr', 'icn', 'icx',
           'iota', 'itc', 'kcash', 'knc', 'link', 'lrc', 'ltc', 'mana', 'mco',
           'mda', 'mdt', 'mth', 'nas', 'neo', 'nuls', 'oax', 'omg', 'pay',
-          'ppt', 'pro', 'qtum', 'qvt', 'rcn', 'rdn', 'read', 'req', 'rnt', 'salt',
+          'ppt', 'pra', 'qtum', 'qvt', 'rcn', 'rdn', 'read', 'req', 'rnt', 'salt',
           'san', 'sngls', 'snm', 'snt', 'ssc', 'storj', 'sub', 'swftc',
           'tnb', 'trx', 'ugc', 'ukg', 'vee', 'wrc', 'wtc', 'xem', 'xlm', 'xmr',
           'xrp', 'xuc', 'yoyo', 'zec', 'zrx', '1st']
