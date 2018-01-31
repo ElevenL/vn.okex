@@ -325,7 +325,7 @@ class OkcoinGateway(VtGateway):
         else:
             profit = float(depth[symbols[1]].bidPrice1) / (float(depth[symbols[2]].bidPrice1) * \
                      float(depth[symbols[0]].askPrice1))
-        if profit > 1.02:   #设置最小盈利空间为1.5%
+        if profit > 1.01:   #设置最小盈利空间为1.5%
             amount = min(float(depth[symbols[0]].askVolume1), float(depth[symbols[1]].bidVolume1)) * float(depth[symbols[0]].askPrice1)
             return depth, profit, amount
         else:
@@ -379,9 +379,9 @@ class OkcoinGateway(VtGateway):
         depth, symbols, amount = self.getAmount()
         if symbols == []:
             return False
+        if True:
+            return
         self.api.writeLog('[Start Polocy]')
-        # if True:
-        #     return
         for i in range(20):
             if symbols[0] not in tradeList and self.api.account['free']['btc'] >= amount[symbols[0]] * float(depth[symbols[0]].askPrice1):
                 # print 'step1'
