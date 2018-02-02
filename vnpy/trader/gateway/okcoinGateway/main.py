@@ -36,7 +36,7 @@ def test():
         # print(time())
     for t in threads:
         t.start()
-    t.join()
+        t.join()
 
     sys.exit(app.exec_())
 

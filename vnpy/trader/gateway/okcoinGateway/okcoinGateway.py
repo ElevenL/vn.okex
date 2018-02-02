@@ -32,6 +32,7 @@ ACCOUNT['free'] = {}
 ACCOUNT['freezed'] = {}
 TRADING = False
 ORDERS = {}
+DONESYMBOL = []
 
 
 
@@ -460,10 +461,12 @@ class OkcoinGateway(VtGateway):
                 req.volume = amount[symbols[1]]
                 self.sendOrder(req)
                 self.tradeList.append(symbols[1])
-            if TRADING and len(self.tradeList) >= 2 and len(ORDERS) == 0:
+            if TRADING and len(self.tradeList) >= 2 and symbols[0] in DONESYMBOL and symbols[1] in DONESYMBOL:
                 self.api.writeLog('[End Policy]succssed complete all trade!')
                 TRADING = False
                 self.tradeList = []
+                DONESYMBOL.remove(symbols[0])
+                DONESYMBOL.remove(symbols[1])
                 return
             sleep(0.1)
         if TRADING:
@@ -493,6 +496,9 @@ class OkcoinGateway(VtGateway):
             self.api.writeLog('[End Policy]Failed complete all trade!')
             TRADING= False
             self.tradeList = []
+            DONESYMBOL.remove(symbols[0])
+            DONESYMBOL.remove(symbols[1])
+
 
     # ----------------------------------------------------------------------
     def registeHandle(self):
@@ -800,7 +806,7 @@ class Api(OkCoinApi):
 
     def onSpotSubTrades(self, data):
         """成交和委托推送"""
-        global ORDERS
+        global ORDERS,DONESYMBOL
         if 'data' not in data:
             return
         rawData = data['data']
@@ -827,6 +833,8 @@ class Api(OkCoinApi):
         order.status = rawData['status']
         ORDERS[orderId] = order
         if str(order.status) == '2' or str(order.status) == '-1':
+            if order.symbol not in DONESYMBOL:
+                DONESYMBOL.append(order.symbol)
             self.spotUserInfo()
             ORDERS.pop(order.orderID)
         self.gateway.onOrder(copy(order))
