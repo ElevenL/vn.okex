@@ -835,10 +835,10 @@ class Api(OkCoinApi):
         order.status = rawData['status']
         ORDERS[orderId] = order
         if str(order.status) == '2' or str(order.status) == '-1':
-            if order.symbol not in DONESYMBOL:
-                DONESYMBOL.append(order.symbol)
             self.spotUserInfo()
             ORDERS.pop(order.orderID)
+        if str(order.status) == '2' and order.symbol not in DONESYMBOL:
+                DONESYMBOL.append(order.symbol)
         self.gateway.onOrder(copy(order))
 
         # 成交信息
