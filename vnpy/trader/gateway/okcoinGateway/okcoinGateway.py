@@ -27,11 +27,6 @@ from vtFunction import getJsonPath
 
 
 # 全局变量
-ACCOUNT = {}
-ACCOUNT['free'] = {}
-ACCOUNT['freezed'] = {}
-TRADING = False
-ORDERS = {}
 
 
 
@@ -84,22 +79,23 @@ class OkcoinGateway(VtGateway):
     """OkCoin接口"""
 
     #----------------------------------------------------------------------
-    def __init__(self, eventEngine, coins, gatewayName='OKCOIN'):
+    def __init__(self, eventEngine, coins, laccount, lorders, ltrading, gatewayName='OKCOIN'):
         """Constructor"""
         super(OkcoinGateway, self).__init__(eventEngine, gatewayName)
-        global ACCOUNT,TRADING,ORDERS
         self.coins = coins
         self.api = Api(self)
         self.leverage = 0
         self.connected = False
 
-        self.qryEnabled = False
+        self.qryEnabled = True
         self.fileName = self.gatewayName + '_connect.json'
         self.filePath = getJsonPath(self.fileName, __file__)
         self.registeHandle()
         self.tradeSymbols = []
         self.tradeTest = True
-
+        self.account = laccount
+        self.orders = lorders
+        self.trading = ltrading
         self.coin2tradeSymbols()
 
     #----------------------------------------------------------------------
@@ -247,16 +243,15 @@ class OkcoinGateway(VtGateway):
     # ----------------------------------------------------------------------
     def pTick(self, event):
         tick = event.dict_['data']
-        if TRADING == False:
+        if self.trading == False:
             self.tradePolicy()
         # print ACCOUNT
-        # if tick.symbol == 'mco_btc':
-        #     print '========tick============='
-        #     print tick.symbol
-        #     print tick.askPrice1
-        #     print tick.askVolume1
-        #     print tick.bidPrice1
-        #     print tick.bidVolume1
+        print '========tick============='
+        print tick.symbol
+        print tick.askPrice1
+        print tick.askVolume1
+        print tick.bidPrice1
+        print tick.bidVolume1
         # if self.tradeTest:
         #     req = VtOrderReq()
         #     req.symbol = tick.symbol
@@ -271,7 +266,7 @@ class OkcoinGateway(VtGateway):
     def pAccount(self, event):
         account = event.dict_['data']
         # print '=======account========'
-        # print self.api.account
+        print self.api.account
 
     # ----------------------------------------------------------------------
     def pOrder(self, event):
@@ -285,7 +280,8 @@ class OkcoinGateway(VtGateway):
     def pBalance(self, event):
         balance = event.dict_['data']
         # print '=======balance========'
-        # print self.api.account
+        # print balance.symbol
+        # print balance.position
 
     # ----------------------------------------------------------------------
     def pLog(self, event):
@@ -332,7 +328,6 @@ class OkcoinGateway(VtGateway):
     # ----------------------------------------------------------------------
     def getAmount(self):
         '''获取盈利最大的合约组合，并计算每个合约的交易量'''
-        global ACCOUNT
         depth, profit, amount = self.prepare(self.tradeSymbols)
         if amount > 0.002:     #设置最小btc交易量为0.002
             tradeSymbol = {}
@@ -348,8 +343,8 @@ class OkcoinGateway(VtGateway):
             print 'depth2:', depth[tradeSymbol['symbol'][1]].bidPrice1, depth[tradeSymbol['symbol'][1]].bidPrice2, depth[tradeSymbol['symbol'][1]].bidVolume1
             print 'depth3:', depth[tradeSymbol['symbol'][2]].bidPrice1, depth[tradeSymbol['symbol'][2]].bidPrice2, depth[tradeSymbol['symbol'][2]].bidVolume1
 
-            if ACCOUNT['free']['btc'] <= tradeSymbol['amount']:
-                initAmount = ACCOUNT['free']['btc']
+            if self.account['free']['btc'] <= tradeSymbol['amount']:
+                initAmount = self.account['free']['btc']
             else:
                 initAmount = tradeSymbol['amount']
             if initAmount < 0.002:
@@ -418,20 +413,19 @@ class OkcoinGateway(VtGateway):
 
     # ----------------------------------------------------------------------
     def tradePolicy(self):
-        global TRADING,ACCOUNT,ORDERS
         tradeList = []
         depth, symbols, amount = self.getAmount()
         if symbols == []:
             return False
-        if TRADING:
+        if self.trading:
             return False
         else:
-            TRADING = True
+            self.trading = True
         self.api.writeLog('[Start Polocy]')
         # if True:
         #     return
         for i in range(100):
-            if symbols[0] not in tradeList and ACCOUNT['free']['btc'] >= amount[symbols[0]] * float(depth[symbols[0]].askPrice1):
+            if symbols[0] not in tradeList and self.account['free']['btc'] >= amount[symbols[0]] * float(depth[symbols[0]].askPrice1):
                 # print 'step1'
                 req = VtOrderReq()
                 req.symbol = symbols[0]
@@ -443,7 +437,7 @@ class OkcoinGateway(VtGateway):
                 # print 'step4'
                 self.sendOrder(req)
                 tradeList.append(symbols[0])
-            if symbols[1] not in tradeList and ACCOUNT['free'][symbols[1].split('_')[0]] >= amount[symbols[1]]:
+            if symbols[1] not in tradeList and self.account['free'][symbols[1].split('_')[0]] >= amount[symbols[1]]:
                 req = VtOrderReq()
                 req.symbol = symbols[1]
                 req.priceType = 'sell'
@@ -451,7 +445,7 @@ class OkcoinGateway(VtGateway):
                 req.volume = amount[symbols[1]]
                 self.sendOrder(req)
                 tradeList.append(symbols[1])
-            if symbols[2] not in tradeList and ACCOUNT['free']['eth'] >= amount[symbols[2]]:
+            if symbols[2] not in tradeList and self.account['free']['eth'] >= amount[symbols[2]]:
                 req = VtOrderReq()
                 req.symbol = symbols[2]
                 req.priceType = 'sell'
@@ -459,20 +453,20 @@ class OkcoinGateway(VtGateway):
                 req.volume = amount[symbols[2]]
                 self.sendOrder(req)
                 tradeList.append(symbols[2])
-            if TRADING and len(tradeList) >= 3 and len(ORDERS) == 0:
+            if self.trading and len(tradeList) >= 3 and len(self.orders) == 0:
                 self.api.writeLog('[End Policy]succssed complete all trade!')
-                TRADING = False
+                self.trading = False
                 return
             sleep(0.1)
-        if TRADING:
+        if self.trading:
             # print '11111',ORDERS
-            orders = deepcopy(ORDERS)
+            orders = deepcopy(self.orders)
             for id in orders.keys():
                 req = VtCancelOrderReq
                 req.symbol = orders[id].symbol
                 req.orderID = orders[id].orderID
                 self.cancelOrder(req)
-                ORDERS.pop(id)
+                self.orders.pop(id)
                 sleep(1)
             # print '22222',ORDERS
             # print '33333',ACCOUNT
@@ -489,15 +483,15 @@ class OkcoinGateway(VtGateway):
             # req.volume = ACCOUNT['free']['eth']
             # self.sendOrder(req)
             self.api.writeLog('[End Policy]Failed complete all trade!')
-            TRADING= False
+            self.trading= False
 
     # ----------------------------------------------------------------------
     def registeHandle(self):
         '''注册处理机'''
         self.eventEngine.register(EVENT_TICK, self.pTick)
-        # self.eventEngine.register(EVENT_ACCOUNT, self.pAccount)
-        # self.eventEngine.register(EVENT_ORDER, self.pOrder)
-        # self.eventEngine.register(EVENT_POSITION, self.pBalance)
+        self.eventEngine.register(EVENT_ACCOUNT, self.pAccount)
+        self.eventEngine.register(EVENT_ORDER, self.pOrder)
+        self.eventEngine.register(EVENT_POSITION, self.pBalance)
 
 ########################################################################
 class Api(OkCoinApi):
@@ -507,9 +501,6 @@ class Api(OkCoinApi):
     def __init__(self, gateway):
         """Constructor"""
         super(Api, self).__init__()
-        global ACCOUNT
-        global TRADING
-        global ORDERS
         self.gateway = gateway                  # gateway对象
         self.gatewayName = gateway.gatewayName  # gateway对象名称
         
@@ -698,9 +689,7 @@ class Api(OkCoinApi):
             self.tickDict[symbol] = tick
         else:
             tick = self.tickDict[symbol]
-        
-        if 'data' not in data:
-            return
+
         rawData = data['data']
 
         tick.bidPrice1, tick.bidVolume1 = rawData['bids'][0]
@@ -717,11 +706,6 @@ class Api(OkCoinApi):
         
         tick.date, tick.time = generateDateTime(rawData['timestamp'])
         newtick = copy(tick)
-        # self.tickCount += 1
-        self.depth[symbol] = newtick
-        # print self.tickCount
-        # print self.depth
-        # print self.depth
         self.gateway.onTick(newtick)
     
     #----------------------------------------------------------------------
@@ -787,7 +771,6 @@ class Api(OkCoinApi):
 
     def onSpotSubTrades(self, data):
         """成交和委托推送"""
-        global ORDERS
         if 'data' not in data:
             return
         rawData = data['data']
@@ -796,7 +779,7 @@ class Api(OkCoinApi):
         orderId = str(rawData['orderId'])
 
         # 委托信息
-        if orderId not in ORDERS.keys():
+        if orderId not in self.orderDict.keys():
             order = VtOrderData()
             order.gatewayName = self.gatewayName
             order.symbol = rawData['symbol']
@@ -806,9 +789,9 @@ class Api(OkCoinApi):
             order.price = float(rawData['tradeUnitPrice'])
             order.totalVolume = float(rawData['tradeAmount'])
             order.direction = rawData['tradeType']
-            ORDERS[orderId] = order
+            self.orderDict[orderId] = order
         else:
-            order = ORDERS[orderId]
+            order = self.orderDict[orderId]
 
         order.tradedVolume = float(rawData['completedTradeAmount'])
         order.status = rawData['status']
@@ -844,12 +827,7 @@ class Api(OkCoinApi):
         rawData = data['data']
         
         for d in rawData['orders']:
-            self.localNo += 1
-            localNo = str(self.localNo)
             orderId = str(d['order_id'])
-            
-            self.localNoDict[localNo] = orderId
-            self.orderIdDict[orderId] = localNo
             
             if orderId not in self.orderDict:
                 order = VtOrderData()
@@ -858,7 +836,7 @@ class Api(OkCoinApi):
                 order.symbol = d['symbol']
                 order.vtSymbol = order.symbol
     
-                order.orderID = localNo
+                order.orderID = orderId
                 order.vtOrderID = '.'.join([self.gatewayName, order.orderID])
                 
                 order.price = d['price']
@@ -872,10 +850,6 @@ class Api(OkCoinApi):
             order.tradedVolume = d['deal_amount']
             order.status = d['status']
             self.orderDict[orderId] = order
-            # print '==========order============'
-            # print order.symbol
-            # print order.orderId
-            # print order.status
             self.gateway.onOrder(copy(order))
     
     #----------------------------------------------------------------------
