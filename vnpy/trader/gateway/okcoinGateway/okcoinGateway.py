@@ -98,6 +98,7 @@ class OkcoinGateway(VtGateway):
         self.filePath = getJsonPath(self.fileName, __file__)
         self.registeHandle()
         self.tradeSymbols = []
+        self.tradeList = []
         self.tradeTest = True
 
         self.coin2tradeSymbols()
@@ -427,7 +428,6 @@ class OkcoinGateway(VtGateway):
     # ----------------------------------------------------------------------
     def tradePolicy(self):
         global TRADING,ACCOUNT,ORDERS
-        tradeList = []
         for tradeSymbol in self.tradeSymbols:
             depth, symbols, amount = self.getAmount(tradeSymbol)
             if symbols != []:
@@ -436,11 +436,11 @@ class OkcoinGateway(VtGateway):
             return False
         else:
             TRADING = True
-        if True:
-            return
+        # if True:
+        #     return
         self.api.writeLog('[Start Polocy]')
         for i in range(100):
-            if symbols[0] not in tradeList:
+            if symbols[0] not in self.tradeList:
                 # print 'step1'
                 req = VtOrderReq()
                 req.symbol = symbols[0]
@@ -451,18 +451,19 @@ class OkcoinGateway(VtGateway):
                 req.volume = amount[symbols[0]]
                 # print 'step4'
                 self.sendOrder(req)
-                tradeList.append(symbols[0])
-            if symbols[1] not in tradeList and ACCOUNT['free'][symbols[1].split('_')[0]] >= amount[symbols[1]]:
+                self.tradeList.append(symbols[0])
+            if symbols[1] not in self.tradeList and ACCOUNT['free'][symbols[1].split('_')[0]] >= amount[symbols[1]]:
                 req = VtOrderReq()
                 req.symbol = symbols[1]
                 req.priceType = 'sell'
                 req.price = depth[symbols[1]].bidPrice1
                 req.volume = amount[symbols[1]]
                 self.sendOrder(req)
-                tradeList.append(symbols[1])
-            if TRADING and len(tradeList) >= 2 and len(ORDERS) == 0:
+                self.tradeList.append(symbols[1])
+            if TRADING and len(self.tradeList) >= 2 and len(ORDERS) == 0:
                 self.api.writeLog('[End Policy]succssed complete all trade!')
                 TRADING = False
+                self.tradeList = []
                 return
             sleep(0.1)
         if TRADING:
@@ -491,6 +492,7 @@ class OkcoinGateway(VtGateway):
             # self.sendOrder(req)
             self.api.writeLog('[End Policy]Failed complete all trade!')
             TRADING= False
+            self.tradeList = []
 
     # ----------------------------------------------------------------------
     def registeHandle(self):
