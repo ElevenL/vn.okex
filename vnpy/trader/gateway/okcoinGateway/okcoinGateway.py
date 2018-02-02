@@ -496,8 +496,10 @@ class OkcoinGateway(VtGateway):
             self.api.writeLog('[End Policy]Failed complete all trade!')
             TRADING= False
             self.tradeList = []
-            DONESYMBOL.remove(symbols[0])
-            DONESYMBOL.remove(symbols[1])
+            if symbols[0] in DONESYMBOL:
+                DONESYMBOL.remove(symbols[0])
+            if symbols[1] in DONESYMBOL:
+                DONESYMBOL.remove(symbols[1])
 
 
     # ----------------------------------------------------------------------
