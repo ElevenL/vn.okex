@@ -727,63 +727,53 @@ class Api(OkCoinApi):
     #----------------------------------------------------------------------
     def onSpotUserInfo(self, data):
         """现货账户资金推送"""
-        global ACCOUNT
         rawData = data['data']
         # print rawData
         info = rawData['info']
         funds = rawData['info']['funds']
-        for coin in funds['freezed']:
-            ACCOUNT['freezed'][coin] = float(funds['freezed'][coin])
-            ACCOUNT['free'][coin] = float(funds['free'][coin])
         # print self.account
         # # 持仓信息
-        # for symbol in ['btc', 'ltc','eth', self.currency]:
-        #     if symbol in funds['free']:
-        #         pos = VtPositionData()
-        #         pos.gatewayName = self.gatewayName
-        #
-        #         pos.symbol = symbol
-        #         pos.vtSymbol = symbol
-        #         pos.vtPositionName = symbol
-        #         # pos.direction = DIRECTION_NET
-        #
-        #         pos.frozen = float(funds['freezed'][symbol])
-        #         pos.position = pos.frozen + float(funds['free'][symbol])
-        #
-        #         self.gateway.onPosition(pos)
+        for symbol in funds['free']:
+            pos = VtPositionData()
+            pos.gatewayName = self.gatewayName
+
+            pos.symbol = symbol
+            pos.vtSymbol = symbol
+            pos.vtPositionName = symbol
+            # pos.direction = DIRECTION_NET
+
+            # pos.frozen = float(funds['freezed'][symbol])
+            pos.position = float(funds['free'][symbol])
+            self.gateway.onPosition(pos)
 
         # 账户资金
-        account = VtAccountData()
-        account.gatewayName = self.gatewayName
-        account.accountID = self.gatewayName
-        account.vtAccountID = account.accountID
-        account.balance = float(funds['free']['btc'])
-        self.gateway.onAccount(account)    
+        # account = VtAccountData()
+        # account.gatewayName = self.gatewayName
+        # account.accountID = self.gatewayName
+        # account.vtAccountID = account.accountID
+        # account.balance = float(funds['free']['btc'])
+        # self.gateway.onAccount(account)
         
     #----------------------------------------------------------------------
 
     def onSpotSubUserInfo(self, data):
         """现货账户资金推送"""
-        global ACCOUNT
         rawData = data['data']
         funds = rawData['info']
         self.writeLog(funds)
-        for coin in funds['free']:
-            ACCOUNT['freezed'][coin] = float(funds['freezed'][coin])
-            ACCOUNT['free'][coin] = float(funds['free'][coin])
         # 持仓信息
-        # for symbol in funds['free']:
-        #     pos = VtPositionData()
-        #     pos.gatewayName = self.gatewayName
-        #
-        #     pos.symbol = symbol
-        #     pos.vtSymbol = symbol
-        #     pos.vtPositionName = symbol
-        #     # pos.direction = DIRECTION_NET
-        #
-        #     pos.frozen = float(funds['freezed'][symbol])
-        #     pos.position = pos.frozen + float(funds['free'][symbol])
-        #     self.gateway.onPosition(pos)
+        for symbol in funds['free']:
+            pos = VtPositionData()
+            pos.gatewayName = self.gatewayName
+
+            pos.symbol = symbol
+            pos.vtSymbol = symbol
+            pos.vtPositionName = symbol
+            # pos.direction = DIRECTION_NET
+
+            # pos.frozen = float(funds['freezed'][symbol])
+            pos.position = float(funds['free'][symbol])
+            self.gateway.onPosition(pos)
 
         # # 账户资金
         # account = VtAccountData()
@@ -822,34 +812,30 @@ class Api(OkCoinApi):
 
         order.tradedVolume = float(rawData['completedTradeAmount'])
         order.status = rawData['status']
-        ORDERS[orderId] = order
-        if str(order.status) == '2':
-            self.spotUserInfo()
-            ORDERS.pop(order.orderID)
         self.gateway.onOrder(copy(order))
 
         # 成交信息
-        # if 'sigTradeAmount' in rawData and float(rawData['sigTradeAmount'])>0:
-        #     trade = VtTradeData()
-        #     trade.gatewayName = self.gatewayName
-        #
-        #     trade.symbol = rawData['symbol']
-        #     trade.vtSymbol = order.symbol
-        #
-        #     trade.tradeID = str(rawData['orderId'])
-        #     trade.vtTradeID = '.'.join([self.gatewayName, trade.tradeID])
-        #
-        #     trade.orderID = str(rawData['orderId'])
-        #     trade.vtOrderID = '.'.join([self.gatewayName, trade.orderID])
-        #
-        #     trade.price = float(rawData['sigTradePrice'])
-        #     trade.volume = float(rawData['sigTradeAmount'])
-        #
-        #     trade.direction = rawData['tradeType']
-        #
-        #     trade.tradeTime = datetime.now().strftime('%H:%M:%S')
-        #
-        #     self.gateway.onTrade(trade)
+        if 'sigTradeAmount' in rawData and float(rawData['sigTradeAmount'])>0:
+            trade = VtTradeData()
+            trade.gatewayName = self.gatewayName
+
+            trade.symbol = rawData['symbol']
+            trade.vtSymbol = order.symbol
+
+            trade.tradeID = str(rawData['orderId'])
+            trade.vtTradeID = '.'.join([self.gatewayName, trade.tradeID])
+
+            trade.orderID = str(rawData['orderId'])
+            trade.vtOrderID = '.'.join([self.gatewayName, trade.orderID])
+
+            trade.price = float(rawData['sigTradePrice'])
+            trade.volume = float(rawData['sigTradeAmount'])
+
+            trade.direction = rawData['tradeType']
+
+            trade.tradeTime = datetime.now().strftime('%H:%M:%S')
+
+            self.gateway.onTrade(trade)
 
         
     #----------------------------------------------------------------------
